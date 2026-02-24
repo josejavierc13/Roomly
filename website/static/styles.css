@@ -159,6 +159,81 @@ footer {
     margin-top: 50px;
 }
 
+/* Signup Page */
+.signup-container {
+    max-width: 400px;
+    margin: 200px auto;
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.signup-container h2 {
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+.signup-container form {
+    display: flex;
+    flex-direction: column;
+}
+.signup-container input {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.signup-container button {
+    padding: 10px;
+    border: none;
+    background-color: #4FA3A5;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.signup-background{
+    background: linear-gradient(to right, #4FA3A5, #66c0c2);
+    height: 100vh;
+}
+
+/* Log In Page */
+.login-container {
+    max-width: 400px;
+    margin: 200px auto;
+    background-color: rgb(255, 255, 255);
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.login-container h2 {
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+.login-container form {
+    display: flex;
+    flex-direction: column;
+}
+.login-container input {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.login-container button {
+    padding: 10px;
+    border: none;
+    background-color: #4FA3A5;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.login-background{
+    background: linear-gradient(to right, #4FA3A5, #66c0c2);
+    height: 100vh;
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
     header {

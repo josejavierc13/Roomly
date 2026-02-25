@@ -8,7 +8,7 @@ def home():
 
 @views.route('/browse')
 def browse():
-    return "<h1>Browse Listings</h1><p>Explore available student housing options.</p>"
+    return render_template('browse.html')
 
 @views.route('/list-property')
 def list_property():

@@ -1,0 +1,101 @@
+<!--This will be the List Property page for Roomly-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>List Property | Roomly</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <!-- Navbar -->
+    <header>
+        <div class="logoRoomly">
+            <img src="{{ url_for('static', filename='logoRoomly.png') }}" alt="Roomly Icon" class="header-icon">
+            Roomly
+            </div>
+        <nav>
+            <a href="{{ url_for('views.home') }}">Home</a>
+            <a href="{{ url_for('views.browse') }}">Browse</a>
+            <a href="{{ url_for('auth.login') }}" class="login-btn">Login</a>
+            <a href="{{ url_for('auth.signup') }}" class="signup-btn">Sign Up</a>
+        </nav>
+    </header>  
+    
+     <!-- List Property Section -->
+    <section class="hero list-property-background">
+        <div class="list-property-container">
+            <h2>List Your Property</h2>
+            <form action="{{ url_for('views.list_property') }}" method="POST" enctype="multipart/form-data">
+                <h4>Enter the title and description of your property:</h4>
+                <input type="text" name="title" placeholder="Property Title" required>
+                <textarea name="description" placeholder="Property Description" required></textarea>
+                <h4>Enter the price per night for the property:</h4>
+                <input type="number" name="price" placeholder="$100" required>
+                <div class="list-property-container checkbox-container">
+                    <h4>Choose Amenities:</h4>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="wifi" name="amenities" value="wifi">
+                        <label for="wifi">WiFi</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="parking" name="amenities" value="parking">
+                        <label for="parking">Parking</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="pool" name="amenities" value="pool">
+                        <label for="pool">Pool</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="gym" name="amenities" value="gym">
+                        <label for="gym">Gym</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="pet-friendly" name="amenities" value="pet-friendly">
+                        <label for="pet-friendly">Pet-Friendly</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="microwave" name="amenities" value="microwave">
+                        <label for="microwave">Microwave</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="stove" name="amenities" value="stove">
+                        <label for="stove">Stove</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="refrigerator" name="amenities" value="refrigerator">
+                        <label for="refrigerator">Refrigerator</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="washer-dryer" name="amenities" value="washer-dryer">
+                        <label for="washer-dryer">Washer/Dryer</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="air-conditioning" name="amenities" value="air-conditioning">
+                        <label for="air-conditioning">Air Conditioning</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="heating" name="amenities" value="heating">
+                        <label for="heating">Heating</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="tv" name="amenities" value="tv">
+                        <label for="tv">TV</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="furniture" name="amenities" value="furniture">
+                        <label for="furniture">Furniture</label>
+                    </div>
+                    <div class="amenity-item">
+                        <input type="checkbox" id="ceiling-fan" name="amenities" value="ceiling-fan">
+                        <label for="ceiling-fan">Ceiling Fan</label>
+                    </div>
+                </div>
+                <h4>Upload Property Images:</h4>
+                <input type="file" name="image" accept="image/*" required>
+                <button type="submit">List Property</button>
+            </form>
+        </div>
+    </section>
+</body>
+</html>

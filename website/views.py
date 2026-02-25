@@ -12,4 +12,4 @@ def browse():
 
 @views.route('/list-property')
 def list_property():
-    return "<h1>List Property</h1><p>Add your property details to get started.</p>"
+    return render_template('list-property.html')

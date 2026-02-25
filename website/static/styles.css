@@ -232,6 +232,81 @@ footer {
     background: linear-gradient(to right, #4FA3A5, #66c0c2);
     height: 100vh;
 }
+/* List Property Page */
+.list-property-container {
+    max-width: 500px;
+    margin: 50px auto;
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+.list-property-container h2 {
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+.list-property-container h4 {
+    margin-bottom: 15px;
+    color: #000000;
+}
+.list-property-container form {
+    display: flex;
+    flex-direction: column;
+}
+.list-property-container input, .list-property-container textarea {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    max-width: 100%;
+    min-height: 50%;
+    min-width: 100%;
+}
+.list-property-container input[type="file"] {
+    width: fit-content;
+    align-self: center;
+}
+
+.list-property-container button {
+    padding: 10px;
+    border: none;
+    background-color: #4FA3A5;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.list-property-background{
+    background: linear-gradient(to right, #4FA3A5, #66c0c2);
+    height: 1200px;
+}
+.list-property-container .checkbox-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    gap: 10px 16px;
+    width: 100%;
+}
+.list-property-container .checkbox-container h4 {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+}
+.list-property-container .checkbox-container .amenity-item {
+    display: fit-content;
+    align-items: center;
+    gap: 15px;
+}
+.list-property-container .checkbox-container .amenity-item input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+.list-property-container .checkbox-container label {
+    color: #000;
+    font-size: 16px;
+    padding-top: 10px;
+}
+
 
 
 /* Responsive */

@@ -29,12 +29,15 @@
         <!-- Filter Section -->
         <div class="filter-section">
             <h3>Filter by:</h3>
-            <div class="filter-options">
-                <label><input type="radio" name="filter" value="price_low_high"> Price: Low to High</label>
-                <label><input type="radio" name="filter" value="price_high_low"> Price: High to Low</label>
-                <label><input type="radio" name="filter" value="newest"> Newest Listings</label>
-                <label><input type="radio" name="filter" value="oldest"> Oldest Listings</label>
-            </div>
+            <form method="GET" action="{{ url_for('views.browse') }}">
+                <div class="filter-options">
+                    <label><input type="radio" name="filter" value="price_low_high" {% if selected_filter == 'price_low_high' %}checked{% endif %}> Price: Low to High</label>
+                    <label><input type="radio" name="filter" value="price_high_low" {% if selected_filter == 'price_high_low' %}checked{% endif %}> Price: High to Low</label>
+                    <label><input type="radio" name="filter" value="newest" {% if selected_filter == 'newest' %}checked{% endif %}> Newest Listings</label>
+                    <label><input type="radio" name="filter" value="oldest" {% if selected_filter == 'oldest' %}checked{% endif %}> Oldest Listings</label>
+                </div>
+                <button type="submit">Apply Filter</button>
+            </form>
         </div>
 
         <!-- Property Listings -->

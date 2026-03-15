@@ -28,11 +28,21 @@
         <div class="list-property-container">
             <h2>List Your Property</h2>
             <form action="{{ url_for('views.list_property') }}" method="POST" enctype="multipart/form-data">
-                <h4>Enter the title and description of your property:</h4>
+                <h4>Property Basics:</h4>
                 <input type="text" name="title" placeholder="Property Title" required>
                 <textarea name="description" placeholder="Property Description" required></textarea>
-                <h4>Enter the price per night for the property:</h4>
-                <input type="number" name="price" placeholder="$100" required>
+                <input type="text" name="address" placeholder="Street Address" required>
+                <input type="text" name="city" placeholder="City" required>
+                <input type="text" name="state" placeholder="State" required>
+                <input type="text" name="country" placeholder="Country" value="USA" required>
+                <input type="text" name="postal_code" placeholder="Postal Code" required>
+
+                <h4>Pricing and Space:</h4>
+                <input type="number" step="0.01" min="0.01" name="price_per_month" placeholder="Monthly Price (e.g. 1200)" required>
+                <input type="number" step="0.01" min="0" name="deposit_amount" placeholder="Deposit Amount" required>
+                <input type="number" min="1" name="number_of_bedrooms" placeholder="Number of Bedrooms" required>
+                <input type="number" min="1" name="sqr_ft" placeholder="Square Footage" required>
+     
                 <div class="list-property-container checkbox-container">
                     <h4>Choose Amenities:</h4>
                     <div class="amenity-item">
@@ -92,8 +102,13 @@
                         <label for="ceiling-fan">Ceiling Fan</label>
                     </div>
                 </div>
+                <div class="amenity-item">
+                    <input type="checkbox" id="availability_status" name="availability_status" value="on" checked>
+                    <label for="availability_status">Available now</label>
+                </div>
+
                 <h4>Upload Property Images:</h4>
-                <input type="file" name="image" accept="image/*" required>
+                <input type="file" name="image" accept="image/*">
                 <button type="submit">List Property</button>
             </form>
         </div>

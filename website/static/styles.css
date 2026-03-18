@@ -47,6 +47,12 @@ nav a {
     font-weight: 500;
 }
 
+.nav-user {
+    margin-left: 20px;
+    color: #333;
+    font-weight: 600;
+}
+
 .signup-btn {
     background-color: #4FA3A5;
     color: white;
@@ -193,6 +199,23 @@ footer {
     color: white;
     border-radius: 5px;
     cursor: pointer;
+}
+.form-messages {
+    margin-bottom: 12px;
+}
+.form-message {
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+.form-message.error {
+    background-color: #f8d7da;
+    color: #842029;
+}
+.form-message.success {
+    background-color: #d1e7dd;
+    color: #0f5132;
 }
 .signup-background{
     background: linear-gradient(to right, #4FA3A5, #66c0c2);

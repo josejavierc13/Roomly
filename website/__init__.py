@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import timedelta
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 
@@ -7,7 +8,7 @@ db = SQLAlchemy()
 
 
 def _default_sqlite_uri(app):
-    db_path = os.path.normpath(os.path.join(app.root_path, '..', 'DATABASE', 'roomly.db'))
+    db_path = os.path.normpath(os.path.join(app.root_path, 'DATABASE', 'roomly.db'))
     normalized_path = db_path.replace('\\', '/')
     return f"sqlite:///{normalized_path}"
 
@@ -22,7 +23,7 @@ def _init_sqlite_schema_if_needed(app):
         return
 
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    schema_path = os.path.normpath(os.path.join(app.root_path, '..', 'DATABASE', 'Roomly.sql'))
+    schema_path = os.path.normpath(os.path.join(app.root_path, 'DATABASE', 'Roomly.sql'))
     if not os.path.exists(schema_path):
         return
 
@@ -61,6 +62,7 @@ def create_app():
     app.config['SECRET_KEY'] = 'your_secret_key'
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or _default_sqlite_uri(app)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
     _init_sqlite_schema_if_needed(app)
     _ensure_property_images_table(app)

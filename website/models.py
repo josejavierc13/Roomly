@@ -1,6 +1,20 @@
 from . import db
 
 
+class Account(db.Model):
+    __tablename__ = 'ACCOUNT'
+
+    account_id_pk = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    hashed_password = db.Column(db.String(255), nullable=False)
+    first_name = db.Column(db.String(255), nullable=False)
+    last_name = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=True)
+    profile_picture = db.Column(db.String(255), nullable=True)
+    date_created = db.Column(db.DateTime, nullable=True)
+    account_status = db.Column(db.String(20), nullable=False)
+
+
 class Owner(db.Model):
     __tablename__ = 'OWNER'
 

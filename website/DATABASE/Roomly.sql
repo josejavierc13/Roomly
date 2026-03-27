@@ -11,7 +11,8 @@ CREATE TABLE ACCOUNT (
     phone_number varchar(20),
     profile_picture varchar(255),
     date_created timestamp DEFAULT CURRENT_TIMESTAMP,
-    account_status varchar(20) CHECK (account_status IN ('active', 'inactive', 'suspended')) NOT NULL
+    account_status varchar(20) CHECK (account_status IN ('active', 'inactive', 'suspended')) NOT NULL,
+    account_type varchar(20) CHECK (account_type IN ('OWNER', 'STUDENT')) NOT NULL DEFAULT 'STUDENT'
 );
 
 /* This table represents the amenities listed on Roomly */
@@ -81,7 +82,9 @@ CREATE TABLE PROPERTY (
     price_per_month float CHECK (price_per_month > 0) NOT NULL,
     deposit_amount float NOT NULL,
     number_of_bedrooms int NOT NULL,
+    number_of_bathrooms int NOT NULL DEFAULT 1,
     sqr_ft int NOT NULL,
+    amenities text,
     availability_status boolean NOT NULL,
     date_posted timestamp DEFAULT CURRENT_TIMESTAMP,
     owner_id_fk int NOT NULL,
@@ -130,6 +133,23 @@ CREATE TABLE PROPERTY_IMAGES (
     property_id_fk int NOT NULL,
     FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk) -- This is a foreign key that references the PROPERTY table
 );
+
+CREATE TABLE PROPERTY_VIDEOS (
+    video_id_pk int PRIMARY KEY,
+    video_url varchar(255) NOT NULL,
+    property_id_fk int NOT NULL,
+    FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk) -- This is a foreign key that references the PROPERTY table
+);
+
+CREATE TABLE PROPERTY_BOOKING (
+    booking_id_pk int PRIMARY KEY,
+    student_id_fk int NOT NULL,
+    property_id_fk int NOT NULL,
+    booking_date timestamp DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id_fk) REFERENCES STUDENT(student_id_pk), -- This is a foreign key that references the STUDENT table
+    FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk) -- This is a foreign key that references the PROPERTY table
+);
+
 
 /* Sample seed data for quick integration testing */
 

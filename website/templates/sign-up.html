@@ -45,6 +45,11 @@
                 <input type="text" name="first_name" placeholder="First Name" value="{{ request.form.get('first_name', '') }}" required>
                 <input type="text" name="last_name" placeholder="Last Name" value="{{ request.form.get('last_name', '') }}" required>
                 <input type="email" name="email" placeholder="Email" value="{{ request.form.get('email', '') }}" required>
+                <h4>Account Type</h4>
+                <select name="account_type" required>
+                    <option value="STUDENT" {% if request.form.get('account_type', 'STUDENT') == 'STUDENT' %}selected{% endif %}>Student</option>
+                    <option value="OWNER" {% if request.form.get('account_type') == 'OWNER' %}selected{% endif %}>Owner</option>
+                </select>
                 <input type="password" name="password" placeholder="Password (min 8 characters)" minlength="8" required>
                 <input type="password" name="confirm_password" placeholder="Confirm Password" minlength="8" required>
                 <button type="submit">Sign Up</button>

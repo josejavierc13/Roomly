@@ -182,6 +182,11 @@ footer {
     text-align: center;
     color: #333;
 }
+.signup-container h4 {
+    margin-bottom: 15px;
+    color: #000000;
+}
+
 .signup-container form {
     display: flex;
     flex-direction: column;
@@ -221,6 +226,13 @@ footer {
     background: linear-gradient(to right, #4FA3A5, #66c0c2);
     height: 100vh;
 }
+.signup-container select {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
 
 /* Log In Page */
 .login-container {
@@ -423,6 +435,114 @@ footer {
     color: white;
 }
 
+/* Property Detail Page */
+.property-detail-page {
+    min-height: calc(100vh - 70px);
+    background: linear-gradient(to right, #4FA3A5, #66c0c2);
+    padding: 40px 20px;
+}
+
+.property-detail-card {
+    max-width: 1050px;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+}
+
+.back-to-browse {
+    display: inline-block;
+    margin-bottom: 18px;
+    text-decoration: none;
+    color: #2f7f80;
+    font-weight: 600;
+}
+
+.property-detail-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 24px;
+}
+
+.property-detail-image-wrap img {
+    width: 100%;
+    border-radius: 10px;
+    object-fit: cover;
+    max-height: 460px;
+}
+
+.property-detail-info h1 {
+    margin-bottom: 10px;
+    color: #1f2f33;
+}
+
+.property-price {
+    color: #2f7f80;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.property-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.property-meta-grid > div {
+    background-color: #f2f8f8;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.meta-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #5e6a6e;
+    letter-spacing: 0.4px;
+}
+
+.meta-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2f33;
+}
+
+.property-address-block,
+.property-description-block,
+.property-amenities-block,
+.property-owner-block {
+    margin-bottom: 18px;
+}
+
+.property-address-block h3,
+.property-description-block h3,
+.property-amenities-block h3,
+.property-owner-block h3 {
+    margin-bottom: 8px;
+    color: #1f2f33;
+}
+
+.property-address-block p,
+.property-description-block p,
+.property-amenities-block p,
+.property-owner-block p {
+    color: #3a4548;
+    line-height: 1.55;
+}
+
+.amenities-list {
+    margin: 0;
+    padding-left: 20px;
+    color: #3a4548;
+    line-height: 1.55;
+}
+
 
 
 
@@ -447,5 +567,17 @@ footer {
 
     .search-box input {
         width: 90%;
+    }
+
+    .property-detail-card {
+        padding: 18px;
+    }
+
+    .property-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .property-meta-grid {
+        grid-template-columns: 1fr;
     }
 }

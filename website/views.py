@@ -1,11 +1,11 @@
 import os
 import uuid
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 from . import db
-from .models import Owner, Property, PropertyImage
+from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage
 
 
 views = Blueprint('views', __name__)
@@ -41,6 +41,22 @@ def browse():
 
 @views.route('/list-property', methods=['GET', 'POST'])
 def list_property():
+    account_id = session.get('account_id')
+    account_type = (session.get('account_type') or '').upper()
+
+    if not account_id:
+        flash('Please log in to list a property.', 'error')
+        return redirect(url_for('auth.login'))
+
+    if account_type != 'OWNER':
+        flash('Only Owner accounts can list properties.', 'error')
+        return redirect(url_for('views.browse'))
+
+    owner_profile = Owner.query.filter_by(account_id_fk=account_id).first()
+    if not owner_profile:
+        flash('Owner profile not found for this account.', 'error')
+        return redirect(url_for('views.browse'))
+
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
@@ -54,22 +70,22 @@ def list_property():
             price_per_month = float(request.form.get('price_per_month', '0'))
             deposit_amount = float(request.form.get('deposit_amount', '0'))
             number_of_bedrooms = int(request.form.get('number_of_bedrooms', '0'))
+            number_of_bathrooms = int(request.form.get('number_of_bathrooms', '0'))
             sqr_ft = int(request.form.get('sqr_ft', '0'))
         except ValueError:
-            flash('Please enter valid numeric values for price, deposit, bedrooms, and size.', 'error')
+            flash('Please enter valid numeric values for price, deposit, beds, baths, and size.', 'error')
             return render_template('list-property.html')
+
+        selected_amenities = request.form.getlist('amenities')
+        formatted_amenities = [amenity.replace('-', ' ').title() for amenity in selected_amenities]
+        amenities_value = ', '.join(formatted_amenities) if formatted_amenities else None
 
         if not all([title, description, address, city, state, country, postal_code]):
             flash('Please fill in all required text fields.', 'error')
             return render_template('list-property.html')
 
-        if price_per_month <= 0 or deposit_amount < 0 or number_of_bedrooms <= 0 or sqr_ft <= 0:
-            flash('Please enter positive values for monthly price, bedrooms, and square footage. Deposit cannot be negative.', 'error')
-            return render_template('list-property.html')
-
-        default_owner = Owner.query.order_by(Owner.owner_id_pk.asc()).first()
-        if not default_owner:
-            flash('No owner account exists yet. Please create an owner first.', 'error')
+        if price_per_month <= 0 or deposit_amount < 0 or number_of_bedrooms <= 0 or number_of_bathrooms <= 0 or sqr_ft <= 0:
+            flash('Please enter positive values for monthly price, bedrooms, bathrooms, and square footage. Deposit cannot be negative.', 'error')
             return render_template('list-property.html')
 
         availability_status = request.form.get('availability_status', 'on') == 'on'
@@ -93,13 +109,28 @@ def list_property():
             price_per_month=price_per_month,
             deposit_amount=deposit_amount,
             number_of_bedrooms=number_of_bedrooms,
+            number_of_bathrooms=number_of_bathrooms,
             sqr_ft=sqr_ft,
+            amenities=amenities_value,
             availability_status=availability_status,
-            owner_id_fk=default_owner.owner_id_pk,
+            owner_id_fk=owner_profile.owner_id_pk,
             university_id_fk=None,
         )
 
         db.session.add(new_property)
+
+        for amenity_name in formatted_amenities:
+            amenity = Amenity.query.filter(db.func.lower(Amenity.name) == amenity_name.lower()).first()
+            if not amenity:
+                next_amenity_id = (db.session.query(db.func.max(Amenity.amenity_id_pk)).scalar() or 0) + 1
+                amenity = Amenity(amenity_id_pk=next_amenity_id, name=amenity_name)
+                db.session.add(amenity)
+
+            mapping = PropertyAmenity(
+                property_id_pk_fk=next_id,
+                amenity_id_pk_fk=amenity.amenity_id_pk,
+            )
+            db.session.add(mapping)
 
         if image_file and image_file.filename:
             extension = image_file.filename.rsplit('.', 1)[1].lower()
@@ -129,4 +160,19 @@ def list_property():
 @views.route('/property/<int:property_id>')
 def property_detail(property_id):
     selected_property = Property.query.get_or_404(property_id)
-    return render_template('browse.html', properties=[selected_property])
+    owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+
+    amenity_names = []
+    if selected_property.amenities:
+        amenity_names = [name.strip() for name in selected_property.amenities.split(',') if name.strip()]
+
+    if not amenity_names:
+        amenity_rows = (
+            db.session.query(Amenity.name)
+            .join(PropertyAmenity, Amenity.amenity_id_pk == PropertyAmenity.amenity_id_pk_fk)
+            .filter(PropertyAmenity.property_id_pk_fk == selected_property.property_id_pk)
+            .all()
+        )
+        amenity_names = [row[0] for row in amenity_rows]
+
+    return render_template('property-detail.html', property=selected_property, owner=owner_profile, amenity_names=amenity_names)

@@ -13,6 +13,7 @@ class Account(db.Model):
     profile_picture = db.Column(db.String(255), nullable=True)
     date_created = db.Column(db.DateTime, nullable=True)
     account_status = db.Column(db.String(20), nullable=False)
+    account_type = db.Column(db.String(20), nullable=False, default='STUDENT')
 
 
 class Owner(db.Model):
@@ -20,12 +21,21 @@ class Owner(db.Model):
 
     owner_id_pk = db.Column(db.Integer, primary_key=True)
     company_name = db.Column(db.String(255), nullable=True)
+    verified_status = db.Column(db.Boolean, nullable=True)
+    account_id_fk = db.Column(db.Integer, nullable=False)
 
 
 class University(db.Model):
     __tablename__ = 'UNIVERSITY'
 
     university_id_pk = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+
+
+class Amenity(db.Model):
+    __tablename__ = 'AMENITIES'
+
+    amenity_id_pk = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     
 
@@ -44,11 +54,14 @@ class Property(db.Model):
     price_per_month = db.Column(db.Float, nullable=False)
     deposit_amount = db.Column(db.Float, nullable=False)
     number_of_bedrooms = db.Column(db.Integer, nullable=False)
+    number_of_bathrooms = db.Column(db.Integer, nullable=False, default=1)
     sqr_ft = db.Column(db.Integer, nullable=False)
+    amenities = db.Column(db.Text, nullable=True)
     availability_status = db.Column(db.Boolean, nullable=False)
     owner_id_fk = db.Column(db.Integer, nullable=False)
     university_id_fk = db.Column(db.Integer, nullable=True)
     images = db.relationship('PropertyImage', backref='property', lazy='select')
+    amenity_links = db.relationship('PropertyAmenity', backref='property', lazy='select')
 
     @property
     def id(self):
@@ -71,3 +84,10 @@ class PropertyImage(db.Model):
     image_id_pk = db.Column(db.Integer, primary_key=True)
     image_url = db.Column(db.String(255), nullable=False)
     property_id_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), nullable=False)
+
+
+class PropertyAmenity(db.Model):
+    __tablename__ = 'PROPERTY_AMENITY'
+
+    property_id_pk_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), primary_key=True)
+    amenity_id_pk_fk = db.Column(db.Integer, db.ForeignKey('AMENITIES.amenity_id_pk'), primary_key=True)

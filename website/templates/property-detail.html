@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ property.title }} | Roomly</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <header>
+        <div class="logoRoomly">
+            <img src="{{ url_for('static', filename='logoRoomly.png') }}" alt="Roomly Icon" class="header-icon">
+            Roomly
+        </div>
+        <nav>
+            <a href="{{ url_for('views.home') }}">Home</a>
+            <a href="{{ url_for('views.browse') }}">Browse</a>
+            <a href="{{ url_for('views.list_property') }}">List Property</a>
+            {% if session.get('account_id') %}
+                <span class="nav-user">Hi, {{ session.get('account_first_name') }}</span>
+                <a href="{{ url_for('auth.logout') }}" class="signup-btn">Log Out</a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}">Login</a>
+                <a href="{{ url_for('auth.signup') }}" class="signup-btn">Sign Up</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <section class="property-detail-page">
+        <div class="property-detail-card">
+            <a class="back-to-browse" href="{{ url_for('views.browse') }}">&larr; Back to Browse</a>
+
+            <div class="property-detail-grid">
+                <div class="property-detail-image-wrap">
+                    <img src="{{ property.image_url }}" alt="{{ property.title }}">
+                </div>
+
+                <div class="property-detail-info">
+                    <h1>{{ property.title }}</h1>
+                    <p class="property-price">${{ '%.2f'|format(property.price_per_month) }} / month</p>
+
+                    <div class="property-meta-grid">
+                        <div>
+                            <span class="meta-label">Bedrooms</span>
+                            <span class="meta-value">{{ property.number_of_bedrooms }}</span>
+                        </div>
+                        <div>
+                            <span class="meta-label">Bathrooms</span>
+                            <span class="meta-value">{{ property.number_of_bathrooms }}</span>
+                        </div>
+                        <div>
+                            <span class="meta-label">Square Feet</span>
+                            <span class="meta-value">{{ property.sqr_ft }}</span>
+                        </div>
+                        <div>
+                            <span class="meta-label">Deposit</span>
+                            <span class="meta-value">${{ '%.2f'|format(property.deposit_amount) }}</span>
+                        </div>
+                        <div>
+                            <span class="meta-label">Status</span>
+                            <span class="meta-value">{{ 'Available' if property.availability_status else 'Not Available' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="property-address-block">
+                        <h3>Address</h3>
+                        <p>{{ property.address }}, {{ property.city }}, {{ property.state }} {{ property.postal_code }}, {{ property.country }}</p>
+                    </div>
+
+                    <div class="property-description-block">
+                        <h3>Description</h3>
+                        <p>{{ property.description }}</p>
+                    </div>
+
+                    <div class="property-amenities-block">
+                        <h3>Amenities</h3>
+                        {% if amenity_names %}
+                            <ul class="amenities-list">
+                                {% for amenity in amenity_names %}
+                                    <li>{{ amenity }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No amenities listed.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="property-owner-block">
+                        <h3>Listed By</h3>
+                        <p>
+                            {% if owner and owner.company_name %}
+                                {{ owner.company_name }}
+                            {% else %}
+                                Roomly Owner
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

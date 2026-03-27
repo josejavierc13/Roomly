@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import db
-from .models import Account
+from .models import Account, Owner
 
 auth = Blueprint('auth', __name__)
 
@@ -30,6 +30,7 @@ def login():
         session['account_id'] = account.account_id_pk
         session['account_first_name'] = account.first_name
         session['account_email'] = account.email
+        session['account_type'] = (account.account_type or 'STUDENT').upper()
         session.permanent = True
 
         flash('Welcome back.', 'success')
@@ -45,9 +46,14 @@ def signup():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
+        account_type = request.form.get('account_type', 'STUDENT').strip().upper()
 
         if not all([first_name, last_name, email, password, confirm_password]):
             flash('Please complete all sign-up fields.', 'error')
+            return render_template('sign-up.html')
+
+        if account_type not in {'OWNER', 'STUDENT'}:
+            flash('Please choose a valid account type.', 'error')
             return render_template('sign-up.html')
 
         if len(password) < 8:
@@ -75,9 +81,21 @@ def signup():
             phone_number=None,
             profile_picture=None,
             account_status='active',
+            account_type=account_type,
         )
 
         db.session.add(account)
+
+        if account_type == 'OWNER':
+            next_owner_id = (db.session.query(db.func.max(Owner.owner_id_pk)).scalar() or 0) + 1
+            owner = Owner(
+                owner_id_pk=next_owner_id,
+                company_name=None,
+                verified_status=False,
+                account_id_fk=next_account_id,
+            )
+            db.session.add(owner)
+
         try:
             db.session.commit()
         except IntegrityError:

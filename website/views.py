@@ -5,7 +5,8 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.utils import secure_filename
 
 from . import db
-from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage
+from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage, Reservation
+from .models import Account
 
 
 views = Blueprint('views', __name__)
@@ -42,20 +43,18 @@ def browse():
 @views.route('/list-property', methods=['GET', 'POST'])
 def list_property():
     account_id = session.get('account_id')
-    account_type = (session.get('account_type') or '').upper()
 
     if not account_id:
         flash('Please log in to list a property.', 'error')
         return redirect(url_for('auth.login'))
 
-    if account_type != 'OWNER':
-        flash('Only Owner accounts can list properties.', 'error')
-        return redirect(url_for('views.browse'))
-
     owner_profile = Owner.query.filter_by(account_id_fk=account_id).first()
     if not owner_profile:
-        flash('Owner profile not found for this account.', 'error')
-        return redirect(url_for('views.browse'))
+        # Create an owner profile for the user
+        next_owner_id = (db.session.query(db.func.max(Owner.owner_id_pk)).scalar() or 0) + 1
+        owner_profile = Owner(owner_id_pk=next_owner_id, account_id_fk=account_id)
+        db.session.add(owner_profile)
+        db.session.commit()
 
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -89,11 +88,15 @@ def list_property():
             return render_template('list-property.html')
 
         availability_status = request.form.get('availability_status', 'on') == 'on'
-        image_file = request.files.get('image')
+        image_files = request.files.getlist('images')
 
-        if image_file and image_file.filename and not _is_allowed_image_file(image_file.filename):
-            flash('Please upload a valid image file (png, jpg, jpeg, gif, webp).', 'error')
-            return render_template('list-property.html')
+        # Filter out empty files and validate
+        image_files = [f for f in image_files if f and f.filename]
+        
+        for image_file in image_files:
+            if not _is_allowed_image_file(image_file.filename):
+                flash('Please upload valid image files (png, jpg, jpeg, webp).', 'error')
+                return render_template('list-property.html')
 
         next_id = (db.session.query(db.func.max(Property.property_id_pk)).scalar() or 0) + 1
 
@@ -132,7 +135,8 @@ def list_property():
             )
             db.session.add(mapping)
 
-        if image_file and image_file.filename:
+        # Save all uploaded images
+        for image_file in image_files:
             extension = image_file.filename.rsplit('.', 1)[1].lower()
             safe_name = secure_filename(image_file.filename.rsplit('.', 1)[0]) or 'property'
             unique_name = f"{safe_name}_{uuid.uuid4().hex}.{extension}"
@@ -175,4 +179,95 @@ def property_detail(property_id):
         )
         amenity_names = [row[0] for row in amenity_rows]
 
-    return render_template('property-detail.html', property=selected_property, owner=owner_profile, amenity_names=amenity_names)
+    reservation = Reservation.query.filter_by(property_id_fk=selected_property.property_id_pk).first()
+    reserver = None
+    if reservation:
+        reserver = Account.query.filter_by(account_id_pk=reservation.account_id_fk).first()
+
+    # Check if current user already has an active reservation
+    user_has_active_reservation = False
+    account_id = session.get('account_id')
+    if account_id:
+        user_has_active_reservation = Reservation.query.filter_by(account_id_fk=account_id).first() is not None
+
+    return render_template('property-detail.html', property=selected_property, owner=owner_profile, amenity_names=amenity_names, reservation=reservation, reserver=reserver, user_has_active_reservation=user_has_active_reservation)
+
+
+@views.route('/property/<int:property_id>/claim', methods=['POST'])
+def claim_property(property_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to claim a property.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+
+    # Prevent owner from claiming their own property
+    if selected_property.owner_id_fk:
+        owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+        if owner_profile and owner_profile.account_id_fk == account_id:
+            flash('You cannot claim your own property.', 'error')
+            return redirect(url_for('views.property_detail', property_id=property_id))
+
+    existing_reservation = Reservation.query.filter_by(property_id_fk=property_id).first()
+    if existing_reservation:
+        flash('This property has already been claimed.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    # Prevent user from claiming more than one property at a time
+    user_existing = Reservation.query.filter_by(account_id_fk=account_id).first()
+    if user_existing:
+        flash('You already have a reserved property. Release it before claiming another.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    next_res_id = (db.session.query(db.func.max(Reservation.reservation_id_pk)).scalar() or 0) + 1
+    reservation = Reservation(
+        reservation_id_pk=next_res_id,
+        property_id_fk=property_id,
+        account_id_fk=account_id,
+        status='reserved',
+    )
+    db.session.add(reservation)
+
+    # mark property as not available while reserved
+    selected_property.availability_status = False
+    db.session.commit()
+
+    # Fetch owner contact info if possible
+    owner_contact = None
+    if selected_property.owner_id_fk:
+        owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+        if owner_profile:
+            owner_account = Account.query.filter_by(account_id_pk=owner_profile.account_id_fk).first()
+            if owner_account:
+                owner_contact = owner_account.email
+
+    msg = 'Property claimed and reserved for you.'
+    if owner_contact:
+        msg += f' Owner contact: {owner_contact}'
+
+    flash(msg, 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))
+
+
+@views.route('/property/<int:property_id>/release', methods=['POST'])
+def release_property(property_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to release a reservation.', 'error')
+        return redirect(url_for('auth.login'))
+
+    reservation = Reservation.query.filter_by(property_id_fk=property_id, account_id_fk=account_id).first()
+    if not reservation:
+        flash('No reservation found for this property under your account.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    selected_property = Property.query.get_or_404(property_id)
+
+    # Remove reservation and mark property available
+    db.session.delete(reservation)
+    selected_property.availability_status = True
+    db.session.commit()
+
+    flash('Reservation released and property is now available.', 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))

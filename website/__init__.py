@@ -76,6 +76,24 @@ def _ensure_account_type_column(app):
             conn.commit()
 
 
+def _ensure_account_city_column(app):
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return
+
+    db_path = db_uri.replace('sqlite:///', '', 1)
+    if not os.path.exists(db_path):
+        return
+
+    with sqlite3.connect(db_path) as conn:
+        columns = conn.execute('PRAGMA table_info(ACCOUNT);').fetchall()
+        column_names = {column[1].lower() for column in columns}
+
+        if 'city' not in column_names:
+            conn.execute('ALTER TABLE ACCOUNT ADD COLUMN city VARCHAR(255);')
+            conn.commit()
+
+
 def _ensure_property_details_columns(app):
     db_uri = app.config['SQLALCHEMY_DATABASE_URI']
     if not db_uri.startswith('sqlite:///'):
@@ -129,6 +147,31 @@ def _ensure_amenities_tables(app):
         conn.execute(create_property_amenity_sql)
         conn.commit()
 
+
+def _ensure_reservations_table(app):
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return
+
+    db_path = db_uri.replace('sqlite:///', '', 1)
+    if not os.path.exists(db_path):
+        return
+
+    create_reservations_sql = '''
+    CREATE TABLE IF NOT EXISTS PROPERTY_RESERVATION (
+        reservation_id_pk int PRIMARY KEY,
+        property_id_fk int NOT NULL,
+        account_id_fk int NOT NULL,
+        reserved_at datetime NOT NULL,
+        status varchar(30) NOT NULL,
+        FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk)
+    );
+    '''
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(create_reservations_sql)
+        conn.commit()
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your_secret_key'
@@ -139,6 +182,8 @@ def create_app():
     _init_sqlite_schema_if_needed(app)
     _ensure_property_images_table(app)
     _ensure_account_type_column(app)
+    _ensure_account_city_column(app)
+    _ensure_reservations_table(app)
     _ensure_property_details_columns(app)
     _ensure_amenities_tables(app)
     db.init_app(app)

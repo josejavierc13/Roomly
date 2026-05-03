@@ -1,4 +1,5 @@
 from . import db
+from datetime import datetime
 
 
 class Account(db.Model):
@@ -9,6 +10,7 @@ class Account(db.Model):
     hashed_password = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(255), nullable=False)
     last_name = db.Column(db.String(255), nullable=False)
+    city = db.Column(db.String(255), nullable=True)
     phone_number = db.Column(db.String(20), nullable=True)
     profile_picture = db.Column(db.String(255), nullable=True)
     date_created = db.Column(db.DateTime, nullable=True)
@@ -84,6 +86,16 @@ class PropertyImage(db.Model):
     image_id_pk = db.Column(db.Integer, primary_key=True)
     image_url = db.Column(db.String(255), nullable=False)
     property_id_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), nullable=False)
+
+
+class Reservation(db.Model):
+    __tablename__ = 'PROPERTY_RESERVATION'
+
+    reservation_id_pk = db.Column(db.Integer, primary_key=True)
+    property_id_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), nullable=False)
+    account_id_fk = db.Column(db.Integer, nullable=False)
+    reserved_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    status = db.Column(db.String(30), nullable=False, default='reserved')
 
 
 class PropertyAmenity(db.Model):

@@ -1,11 +1,21 @@
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+import os
+import uuid
+
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import db
-from .models import Account, Owner
+from .models import Account, Owner, Property, Reservation
 
 auth = Blueprint('auth', __name__)
+
+ALLOWED_PROFILE_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+
+def _is_allowed_profile_image(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_PROFILE_IMAGE_EXTENSIONS
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
@@ -43,6 +53,7 @@ def signup():
     if request.method == 'POST':
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
+        city = request.form.get('city', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
@@ -78,6 +89,7 @@ def signup():
             hashed_password=hashed_password,
             first_name=first_name,
             last_name=last_name,
+            city=city or None,
             phone_number=None,
             profile_picture=None,
             account_status='active',
@@ -113,3 +125,90 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))
+
+
+@auth.route('/profile', methods=['GET', 'POST'])
+def profile():
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to view your profile.', 'error')
+        return redirect(url_for('auth.login'))
+
+    account = Account.query.filter_by(account_id_pk=account_id).first()
+    if not account:
+        session.clear()
+        flash('Account not found. Please log in again.', 'error')
+        return redirect(url_for('auth.login'))
+
+    owner_profile = Owner.query.filter_by(account_id_fk=account.account_id_pk).first()
+    owned_properties = []
+    if owner_profile:
+        owned_properties = (
+            Property.query
+            .filter_by(owner_id_fk=owner_profile.owner_id_pk)
+            .order_by(Property.property_id_pk.desc())
+            .all()
+        )
+
+    listed_properties = [property_row for property_row in owned_properties if property_row.availability_status]
+    rented_properties = [property_row for property_row in owned_properties if not property_row.availability_status]
+
+    # Properties this account has reserved/claimed
+    reserved_properties = []
+    user_reservations = Reservation.query.filter_by(account_id_fk=account.account_id_pk).order_by(Reservation.reserved_at.desc()).all()
+    for res in user_reservations:
+        prop = Property.query.get(res.property_id_fk)
+        if prop:
+            reserved_properties.append({'property': prop, 'reservation': res})
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        city = request.form.get('city', '').strip()
+
+        if not email or not first_name or not last_name:
+            flash('Email, name, and last name are required.', 'error')
+            return redirect(url_for('auth.profile'))
+
+        existing_account = Account.query.filter(db.func.lower(Account.email) == email).first()
+        if existing_account and existing_account.account_id_pk != account.account_id_pk:
+            flash('That email is already used by another account.', 'error')
+            return redirect(url_for('auth.profile'))
+
+        account.email = email
+        account.first_name = first_name
+        account.last_name = last_name
+        account.city = city or None
+
+        profile_picture = request.files.get('profile_picture')
+        if profile_picture and profile_picture.filename:
+            if not _is_allowed_profile_image(profile_picture.filename):
+                flash('Please upload a valid image file (png, jpg, jpeg, webp).', 'error')
+                return redirect(url_for('auth.profile'))
+
+            extension = profile_picture.filename.rsplit('.', 1)[1].lower()
+            safe_name = secure_filename(profile_picture.filename.rsplit('.', 1)[0]) or 'profile'
+            unique_name = f"{safe_name}_{uuid.uuid4().hex}.{extension}"
+
+            pictures_dir = os.path.join(current_app.static_folder, 'profile_pictures')
+            os.makedirs(pictures_dir, exist_ok=True)
+            file_path = os.path.join(pictures_dir, unique_name)
+            profile_picture.save(file_path)
+
+            account.profile_picture = f'/static/profile_pictures/{unique_name}'
+
+        db.session.commit()
+        session['account_first_name'] = account.first_name
+        session['account_email'] = account.email
+
+        flash('Profile updated successfully.', 'success')
+        return redirect(url_for('auth.profile'))
+
+    return render_template(
+        'profile.html',
+        account=account,
+        listed_properties=listed_properties,
+        rented_properties=rented_properties,
+        reserved_properties=reserved_properties,
+    )

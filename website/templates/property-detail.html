@@ -8,15 +8,16 @@
 </head>
 <body>
     <header>
-        <div class="logoRoomly">
+        <a class="logoRoomly" href="{{ url_for('views.home') }}">
             <img src="{{ url_for('static', filename='logoRoomly.png') }}" alt="Roomly Icon" class="header-icon">
             Roomly
-        </div>
+        </a>
         <nav>
             <a href="{{ url_for('views.home') }}">Home</a>
             <a href="{{ url_for('views.browse') }}">Browse</a>
             <a href="{{ url_for('views.list_property') }}">List Property</a>
             {% if session.get('account_id') %}
+                <a href="{{ url_for('auth.profile') }}">Profile</a>
                 <span class="nav-user">Hi, {{ session.get('account_first_name') }}</span>
                 <a href="{{ url_for('auth.logout') }}" class="signup-btn">Log Out</a>
             {% else %}
@@ -32,12 +33,46 @@
 
             <div class="property-detail-grid">
                 <div class="property-detail-image-wrap">
-                    <img src="{{ property.image_url }}" alt="{{ property.title }}">
+                    {% if property.images %}
+                        <div class="property-images-gallery">
+                            {% for image in property.images %}
+                                <img src="{{ image.image_url }}" alt="{{ property.title }}" class="gallery-image" data-gallery-image="true">
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <img src="/static/logoRoomly.png" alt="{{ property.title }}">
+                    {% endif %}
                 </div>
 
                 <div class="property-detail-info">
                     <h1>{{ property.title }}</h1>
                     <p class="property-price">${{ '%.2f'|format(property.price_per_month) }} / month</p>
+
+                    {% if reservation %}
+                        <div class="property-reservation-status">
+                            <strong>Reserved by:</strong>
+                            {% if reserver %}
+                                {% if session.get('account_id') == reserver.account_id_pk %}
+                                    You ({{ reserver.first_name }} {{ reserver.last_name }})
+                                    <form method="POST" action="{{ url_for('views.release_property', property_id=property.property_id_pk) }}" style="display:inline">
+                                        <button type="submit" class="release-btn">Release</button>
+                                    </form>
+                                {% else %}
+                                    {{ reserver.first_name }} {{ reserver.last_name }}
+                                {% endif %}
+                            {% else %}
+                                Someone
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {% if session.get('account_id') and (not property.owner_id_fk or session.get('account_id') != (owner.account_id_fk if owner else None)) and property.availability_status and not user_has_active_reservation %}
+                            <form method="POST" action="{{ url_for('views.claim_property', property_id=property.property_id_pk) }}">
+                                <button type="submit" class="claim-btn">Claim Property</button>
+                            </form>
+                        {% elif user_has_active_reservation %}
+                            <p class="small-note">You can have only one active reservation. Release it before claiming another.</p>
+                        {% endif %}
+                    {% endif %}
 
                     <div class="property-meta-grid">
                         <div>
@@ -99,5 +134,87 @@
             </div>
         </div>
     </section>
+
+    <div id="imageLightbox" class="image-lightbox" aria-hidden="true">
+        <button type="button" id="lightboxClose" class="lightbox-close" aria-label="Close image viewer">&times;</button>
+        <button type="button" id="lightboxPrev" class="lightbox-nav lightbox-prev" aria-label="Previous image">&#10094;</button>
+        <img id="lightboxImage" class="lightbox-image" src="" alt="Expanded property image">
+        <button type="button" id="lightboxNext" class="lightbox-nav lightbox-next" aria-label="Next image">&#10095;</button>
+        <div id="lightboxCounter" class="lightbox-counter"></div>
+    </div>
+
+    <script>
+        (function () {
+            const galleryImages = Array.from(document.querySelectorAll('[data-gallery-image="true"]'));
+            if (!galleryImages.length) {
+                return;
+            }
+
+            const lightbox = document.getElementById('imageLightbox');
+            const lightboxImage = document.getElementById('lightboxImage');
+            const lightboxCounter = document.getElementById('lightboxCounter');
+            const closeBtn = document.getElementById('lightboxClose');
+            const prevBtn = document.getElementById('lightboxPrev');
+            const nextBtn = document.getElementById('lightboxNext');
+            let currentIndex = 0;
+
+            function showImage(index) {
+                const total = galleryImages.length;
+                currentIndex = (index + total) % total;
+                lightboxImage.src = galleryImages[currentIndex].src;
+                lightboxImage.alt = galleryImages[currentIndex].alt || 'Expanded property image';
+                lightboxCounter.textContent = `${currentIndex + 1} / ${total}`;
+            }
+
+            function openLightbox(index) {
+                showImage(index);
+                lightbox.classList.add('active');
+                lightbox.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('lightbox-open');
+            }
+
+            function closeLightbox() {
+                lightbox.classList.remove('active');
+                lightbox.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('lightbox-open');
+            }
+
+            galleryImages.forEach(function (img, index) {
+                img.addEventListener('click', function () {
+                    openLightbox(index);
+                });
+            });
+
+            prevBtn.addEventListener('click', function () {
+                showImage(currentIndex - 1);
+            });
+
+            nextBtn.addEventListener('click', function () {
+                showImage(currentIndex + 1);
+            });
+
+            closeBtn.addEventListener('click', closeLightbox);
+
+            lightbox.addEventListener('click', function (event) {
+                if (event.target === lightbox) {
+                    closeLightbox();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (!lightbox.classList.contains('active')) {
+                    return;
+                }
+
+                if (event.key === 'ArrowLeft') {
+                    showImage(currentIndex - 1);
+                } else if (event.key === 'ArrowRight') {
+                    showImage(currentIndex + 1);
+                } else if (event.key === 'Escape') {
+                    closeLightbox();
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

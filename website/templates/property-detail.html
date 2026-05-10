@@ -42,36 +42,116 @@
                     {% else %}
                         <img src="/static/logoRoomly.png" alt="{{ property.title }}">
                     {% endif %}
+
+                    <div class="property-owner-block">
+                        <h3>Reviews</h3>
+                        {% if average_rating is not none %}
+                            <p>Average rating: {{ average_rating }} / 5.0</p>
+                        {% else %}
+                            <p>No reviews yet.</p>
+                        {% endif %}
+
+                        {% if can_review %}
+                            <form method="POST" action="{{ url_for('views.review_property', property_id=property.property_id_pk) }}" class="review-form">
+                                <label for="rating">Your rating</label>
+                                <select id="rating" name="rating" required>
+                                    <option value="">Select rating</option>
+                                    {% for value in range(5, 0, -1) %}
+                                        <option value="{{ value }}">{{ value }} / 5</option>
+                                    {% endfor %}
+                                </select>
+
+                                <label for="comment">Comment</label>
+                                <textarea id="comment" name="comment" rows="4" placeholder="Write a short review..."></textarea>
+
+                                <button type="submit" class="claim-btn">Submit Review</button>
+                            </form>
+                        {% elif user_review %}
+                            <p>You already reviewed this property.</p>
+                        {% endif %}
+
+                        {% if reviews %}
+                            <div class="property-reviews-list">
+                                {% for review in reviews %}
+                                    <div class="property-reservation-status" style="margin-top: 1rem;">
+                                        <strong>{{ review.rating }} / 5</strong>
+                                        {% if review.comment %}
+                                            <div>{{ review.comment }}</div>
+                                        {% endif %}
+                                        <div>{{ review.date_posted.strftime('%Y-%m-%d') }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="property-detail-info">
                     <h1>{{ property.title }}</h1>
                     <p class="property-price">${{ '%.2f'|format(property.price_per_month) }} / month</p>
 
-                    {% if reservation %}
+                    <div class="property-owner-block">
+                        <h3>Landlord Contact</h3>
+                        {% if owner_account %}
+                            <p>{{ owner_account.first_name }} {{ owner_account.last_name }}</p>
+                            <p>{{ owner_account.email }}</p>
+                            {% if owner_account.phone_number %}
+                                <p>{{ owner_account.phone_number }}</p>
+                            {% endif %}
+                        {% else %}
+                            <p>No landlord contact available.</p>
+                        {% endif %}
+                    </div>
+
+                    {% if user_application %}
                         <div class="property-reservation-status">
-                            <strong>Reserved by:</strong>
-                            {% if reserver %}
-                                {% if session.get('account_id') == reserver.account_id_pk %}
-                                    You ({{ reserver.first_name }} {{ reserver.last_name }})
-                                    <form method="POST" action="{{ url_for('views.release_property', property_id=property.property_id_pk) }}" style="display:inline">
-                                        <button type="submit" class="release-btn">Release</button>
-                                    </form>
-                                {% else %}
-                                    {{ reserver.first_name }} {{ reserver.last_name }}
-                                {% endif %}
-                            {% else %}
-                                Someone
+                            <strong>Your application status:</strong> {{ user_application.status|title }}
+                            {% if user_application.status == 'approved' %}
+                                <form method="POST" action="{{ url_for('views.release_property', property_id=property.property_id_pk) }}" style="display:inline">
+                                    <button type="submit" class="release-btn">Withdraw</button>
+                                </form>
                             {% endif %}
                         </div>
-                    {% else %}
-                        {% if session.get('account_id') and (not property.owner_id_fk or session.get('account_id') != (owner.account_id_fk if owner else None)) and property.availability_status and not user_has_active_reservation %}
-                            <form method="POST" action="{{ url_for('views.claim_property', property_id=property.property_id_pk) }}">
-                                <button type="submit" class="claim-btn">Claim Property</button>
+                    {% elif session.get('account_id') and (not property.owner_id_fk or session.get('account_id') != (owner.account_id_fk if owner else None)) and property.availability_status and not user_application %}
+                        <form method="POST" action="{{ url_for('views.claim_property', property_id=property.property_id_pk) }}">
+                            <button type="submit" class="claim-btn">Apply to Claim Property</button>
+                        </form>
+                    {% endif %}
+
+                    {% if property_applications %}
+                        <div class="property-owner-block">
+                            <h3>Applications for This Property</h3>
+                            {% for item in property_applications %}
+                                <div class="property-reservation-status" style="margin-bottom: 1rem;">
+                                    {% if item.applicant %}
+                                        <strong>{{ item.applicant.first_name }} {{ item.applicant.last_name }}</strong>
+                                        <div>{{ item.applicant.email }}</div>
+                                        {% if item.applicant.phone_number %}
+                                            <div>{{ item.applicant.phone_number }}</div>
+                                        {% endif %}
+                                    {% else %}
+                                        <strong>Applicant unavailable</strong>
+                                    {% endif %}
+                                    <div>{{ item.reservation.status|title }}</div>
+                                    {% if item.reservation.status == 'pending' %}
+                                        <form method="POST" action="{{ url_for('views.approve_application', property_id=property.property_id_pk, reservation_id=item.reservation.reservation_id_pk) }}" style="display:inline">
+                                            <button type="submit" class="claim-btn">Approve</button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('views.deny_application', property_id=property.property_id_pk, reservation_id=item.reservation.reservation_id_pk) }}" style="display:inline">
+                                            <button type="submit" class="delete-btn">Deny</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if session.get('account_id') and owner and owner.account_id_fk == session.get('account_id') %}
+                        <div class="property-owner-actions">
+                            <form method="POST" action="{{ url_for('views.delete_property', property_id=property.property_id_pk) }}" style="display:inline" onsubmit="return confirm('Are you sure you want to delete this property listing? This action cannot be undone.');">
+                                <button type="submit" class="delete-btn">Remove Listing</button>
                             </form>
-                        {% elif user_has_active_reservation %}
-                            <p class="small-note">You can have only one active reservation. Release it before claiming another.</p>
-                        {% endif %}
+                        </div>
                     {% endif %}
 
                     <div class="property-meta-grid">

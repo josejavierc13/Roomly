@@ -172,6 +172,101 @@ def _ensure_reservations_table(app):
         conn.execute(create_reservations_sql)
         conn.commit()
 
+
+def _ensure_reservation_status_column(app):
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return
+
+    db_path = db_uri.replace('sqlite:///', '', 1)
+    if not os.path.exists(db_path):
+        return
+
+    with sqlite3.connect(db_path) as conn:
+        columns = conn.execute('PRAGMA table_info(PROPERTY_RESERVATION);').fetchall()
+        column_names = {column[1].lower() for column in columns}
+
+        if 'status' not in column_names:
+            conn.execute("ALTER TABLE PROPERTY_RESERVATION ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'pending';")
+            conn.commit()
+
+
+def _ensure_review_table(app):
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return
+
+    db_path = db_uri.replace('sqlite:///', '', 1)
+    if not os.path.exists(db_path):
+        return
+
+    create_review_sql = '''
+    CREATE TABLE IF NOT EXISTS REVIEW_PROPERTY (
+        review_property_id_pk int PRIMARY KEY,
+        property_id_fk int NOT NULL,
+        account_id_fk int NOT NULL,
+        student_id_fk int,
+        rating int NOT NULL,
+        comment text,
+        date_posted datetime NOT NULL,
+        FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk),
+        FOREIGN KEY (account_id_fk) REFERENCES ACCOUNT(account_id_pk),
+        FOREIGN KEY (student_id_fk) REFERENCES STUDENT(student_id_pk),
+        UNIQUE (account_id_fk, property_id_fk)
+    );
+    '''
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(create_review_sql)
+        conn.commit()
+
+
+def _ensure_review_account_column(app):
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if not db_uri.startswith('sqlite:///'):
+        return
+
+    db_path = db_uri.replace('sqlite:///', '', 1)
+    if not os.path.exists(db_path):
+        return
+
+    with sqlite3.connect(db_path) as conn:
+        columns = conn.execute('PRAGMA table_info(REVIEW_PROPERTY);').fetchall()
+        column_names = {column[1].lower() for column in columns}
+
+        if 'account_id_fk' not in column_names:
+            conn.execute('ALTER TABLE REVIEW_PROPERTY ADD COLUMN account_id_fk INTEGER;')
+
+        if 'student_id_fk' not in column_names:
+            conn.execute('ALTER TABLE REVIEW_PROPERTY ADD COLUMN student_id_fk INTEGER;')
+
+        if 'student_id_fk' in column_names:
+            conn.execute(
+                '''
+                UPDATE REVIEW_PROPERTY
+                SET account_id_fk = (
+                    SELECT account_id_fk
+                    FROM STUDENT
+                    WHERE STUDENT.student_id_pk = REVIEW_PROPERTY.student_id_fk
+                )
+                WHERE account_id_fk IS NULL;
+                '''
+            )
+
+        conn.execute(
+            '''
+            UPDATE REVIEW_PROPERTY
+            SET student_id_fk = (
+                SELECT student_id_pk
+                FROM STUDENT
+                WHERE STUDENT.account_id_fk = REVIEW_PROPERTY.account_id_fk
+            )
+            WHERE student_id_fk IS NULL AND account_id_fk IS NOT NULL;
+            '''
+        )
+
+        conn.commit()
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'your_secret_key'
@@ -184,6 +279,9 @@ def create_app():
     _ensure_account_type_column(app)
     _ensure_account_city_column(app)
     _ensure_reservations_table(app)
+    _ensure_reservation_status_column(app)
+    _ensure_review_table(app)
+    _ensure_review_account_column(app)
     _ensure_property_details_columns(app)
     _ensure_amenities_tables(app)
     db.init_app(app)

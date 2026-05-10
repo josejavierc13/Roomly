@@ -1,5 +1,6 @@
 from . import db
 from datetime import datetime
+from sqlalchemy import UniqueConstraint
 
 
 class Account(db.Model):
@@ -64,6 +65,7 @@ class Property(db.Model):
     university_id_fk = db.Column(db.Integer, nullable=True)
     images = db.relationship('PropertyImage', backref='property', lazy='select')
     amenity_links = db.relationship('PropertyAmenity', backref='property', lazy='select')
+    reviews = db.relationship('PropertyReview', backref='property', lazy='select', cascade='all, delete-orphan')
 
     @property
     def id(self):
@@ -95,7 +97,39 @@ class Reservation(db.Model):
     property_id_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), nullable=False)
     account_id_fk = db.Column(db.Integer, nullable=False)
     reserved_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String(30), nullable=False, default='reserved')
+    status = db.Column(db.String(30), nullable=False, default='pending')
+
+
+class PropertyReview(db.Model):
+    __tablename__ = 'REVIEW_PROPERTY'
+    __table_args__ = (
+        UniqueConstraint('account_id_fk', 'property_id_fk', name='uq_review_property_account'),
+    )
+
+    review_property_id_pk = db.Column(db.Integer, primary_key=True)
+    property_id_fk = db.Column(db.Integer, db.ForeignKey('PROPERTY.property_id_pk'), nullable=False)
+    account_id_fk = db.Column(db.Integer, db.ForeignKey('ACCOUNT.account_id_pk'), nullable=False)
+    student_id_fk = db.Column(db.Integer, db.ForeignKey('STUDENT.student_id_pk'), nullable=True)
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class Student(db.Model):
+    __tablename__ = 'STUDENT'
+
+    student_id_pk = db.Column(db.Integer, primary_key=True)
+    major = db.Column(db.String(255), nullable=False)
+    year_of_study = db.Column(db.Integer, nullable=False)
+    bio = db.Column(db.String(255), nullable=True)
+    budget_min = db.Column(db.Float, nullable=True)
+    budget_max = db.Column(db.Float, nullable=True)
+    smoking_preference = db.Column(db.Boolean, nullable=True)
+    pets_preference = db.Column(db.Boolean, nullable=True)
+    sleep_schedule_preference = db.Column(db.String(50), nullable=True)
+    student_active_status = db.Column(db.Boolean, nullable=True)
+    university_id_fk = db.Column(db.Integer, nullable=True)
+    account_id_fk = db.Column(db.Integer, db.ForeignKey('ACCOUNT.account_id_pk'), nullable=False)
 
 
 class PropertyAmenity(db.Model):

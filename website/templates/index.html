@@ -32,12 +32,9 @@
     <!-- Hero Section -->
     <section class="hero">
         <h1>Find Your Perfect Student Home</h1>
-        <p>Safe. Affordable. Built for students.</p>
+        <p>Safe and Easy</p>
 
-        <div class="search-box">
-            <input type="text" placeholder="Search by city or university">
-            <button>Search</button>
-        </div>
+        
     </section>
 
     <!-- Featured Listings -->
@@ -45,28 +42,22 @@
         <h2>Featured Rooms</h2>
 
         <div class="cards">
-
-            <div class="card">
-                <img src="" alt="Room">
-                <h3>Cozy Apartment Near Campus</h3>
-                <p>$550/month</p>
-                <button>View Details</button>
-            </div>
-
-            <div class="card">
-                <img src="" alt="Room">
-                <h3>Modern Studio</h3>
-                <p>$700/month</p>
-                <button>View Details</button>
-            </div>
-
-            <div class="card">
-                <img src="" alt="Room">
-                <h3>Shared House - 3 Roommates</h3>
-                <p>$450/month</p>
-                <button>View Details</button>
-            </div>
-
+            {% if featured_properties %}
+                {% for property in featured_properties %}
+                    <div class="card">
+                        {% if property.image_url %}
+                            <img src="{{ property.image_url }}" alt="{{ property.title }}">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='logoRoomly.png') }}" alt="{{ property.title }}">
+                        {% endif %}
+                        <h3>{{ property.title }}</h3>
+                        <p>${{ '%.2f'|format(property.price_per_month) }}/month</p>
+                        <a href="{{ url_for('views.property_detail', property_id=property.property_id_pk) }}" class="view-details-btn">View Details</a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No featured rooms available at the moment.</p>
+            {% endif %}
         </div>
     </section>
 

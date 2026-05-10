@@ -54,6 +54,7 @@ def signup():
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         city = request.form.get('city', '').strip()
+        phone_number = request.form.get('phone_number', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
@@ -90,7 +91,7 @@ def signup():
             first_name=first_name,
             last_name=last_name,
             city=city or None,
-            phone_number=None,
+            phone_number=phone_number or None,
             profile_picture=None,
             account_status='active',
             account_type=account_type,
@@ -151,7 +152,33 @@ def profile():
         )
 
     listed_properties = [property_row for property_row in owned_properties if property_row.availability_status]
-    rented_properties = [property_row for property_row in owned_properties if not property_row.availability_status]
+
+    owner_applications = []
+    if owner_profile:
+        owned_property_ids = [property_row.property_id_pk for property_row in owned_properties]
+        if owned_property_ids:
+            owner_reservations = (
+                Reservation.query
+                .filter(Reservation.property_id_fk.in_(owned_property_ids))
+                .order_by(Reservation.reserved_at.desc())
+                .all()
+            )
+            for res in owner_reservations:
+                prop = Property.query.get(res.property_id_fk)
+                applicant = Account.query.get(res.account_id_fk)
+                owner_applications.append({'property': prop, 'reservation': res, 'applicant': applicant})
+
+    rented_properties = []
+    approved_reservations = (
+        Reservation.query
+        .filter_by(account_id_fk=account.account_id_pk, status='approved')
+        .order_by(Reservation.reserved_at.desc())
+        .all()
+    )
+    for res in approved_reservations:
+        prop = Property.query.get(res.property_id_fk)
+        if prop:
+            rented_properties.append(prop)
 
     # Properties this account has reserved/claimed
     reserved_properties = []
@@ -159,13 +186,16 @@ def profile():
     for res in user_reservations:
         prop = Property.query.get(res.property_id_fk)
         if prop:
-            reserved_properties.append({'property': prop, 'reservation': res})
+            property_owner_profile = Owner.query.filter_by(owner_id_pk=prop.owner_id_fk).first() if prop.owner_id_fk else None
+            owner_account = Account.query.filter_by(account_id_pk=property_owner_profile.account_id_fk).first() if property_owner_profile else None
+            reserved_properties.append({'property': prop, 'reservation': res, 'owner_account': owner_account})
 
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         city = request.form.get('city', '').strip()
+        phone_number = request.form.get('phone_number', '').strip()
 
         if not email or not first_name or not last_name:
             flash('Email, name, and last name are required.', 'error')
@@ -180,6 +210,7 @@ def profile():
         account.first_name = first_name
         account.last_name = last_name
         account.city = city or None
+        account.phone_number = phone_number or None
 
         profile_picture = request.files.get('profile_picture')
         if profile_picture and profile_picture.filename:
@@ -211,4 +242,6 @@ def profile():
         listed_properties=listed_properties,
         rented_properties=rented_properties,
         reserved_properties=reserved_properties,
+        owner_profile=owner_profile,
+        owner_applications=owner_applications,
     )

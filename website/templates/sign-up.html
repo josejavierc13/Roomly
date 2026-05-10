@@ -45,6 +45,7 @@
                 <input type="text" name="first_name" placeholder="First Name" value="{{ request.form.get('first_name', '') }}" required>
                 <input type="text" name="last_name" placeholder="Last Name" value="{{ request.form.get('last_name', '') }}" required>
                 <input type="text" name="city" placeholder="City" value="{{ request.form.get('city', '') }}">
+                <input type="tel" name="phone_number" placeholder="Phone Number" value="{{ request.form.get('phone_number', '') }}">
                 <input type="email" name="email" placeholder="Email" value="{{ request.form.get('email', '') }}" required>
                 <h4>Account Type</h4>
                 <select name="account_type" required>

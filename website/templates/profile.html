@@ -62,6 +62,9 @@
 
                         <label for="city">City</label>
                         <input type="text" id="city" name="city" value="{{ account.city or '' }}" placeholder="Enter your city">
+
+                        <label for="phone_number">Phone number</label>
+                        <input type="tel" id="phone_number" name="phone_number" value="{{ account.phone_number or '' }}" placeholder="e.g. +1 555 555 5555">
                     </div>
                 </div>
                 <button type="submit" class="profile-save-btn">Save Changes</button>
@@ -86,10 +89,24 @@
                         {% endif %}
                     </div>
 
-                    <!-- Rented / Not Available section removed as requested -->
+                    <div class="profile-properties-card">
+                        <h4>Currently Rented</h4>
+                        {% if rented_properties %}
+                            <ul class="profile-properties-list">
+                                {% for property in rented_properties %}
+                                    <li>
+                                        <a href="{{ url_for('views.property_detail', property_id=property.property_id_pk) }}">{{ property.title }}</a>
+                                        <span>{{ property.city }}, {{ property.state }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No properties currently rented.</p>
+                        {% endif %}
+                    </div>
 
                     <div class="profile-properties-card">
-                        <h4>Claimed / My Reservations</h4>
+                        <h4>My Applications</h4>
                         {% if reserved_properties %}
                             <ul class="profile-properties-list">
                                 {% for item in reserved_properties %}
@@ -98,16 +115,47 @@
                                     <li>
                                         <a href="{{ url_for('views.property_detail', property_id=property.property_id_pk) }}">{{ property.title }}</a>
                                         <span>{{ property.city }}, {{ property.state }}</span>
+                                        <span>Status: {{ reservation.status|title }}</span>
+                                        {% if item.owner_account %}
+                                            <span>Landlord: {{ item.owner_account.first_name }} {{ item.owner_account.last_name }}</span>
+                                            <span>{{ item.owner_account.email }}</span>
+                                            {% if item.owner_account.phone_number %}
+                                                <span>{{ item.owner_account.phone_number }}</span>
+                                            {% endif %}
+                                        {% endif %}
                                         <form method="POST" action="{{ url_for('views.release_property', property_id=property.property_id_pk) }}" style="display:inline">
-                                            <button type="submit" class="release-btn">Release</button>
+                                            <button type="submit" class="release-btn">Withdraw</button>
                                         </form>
                                     </li>
                                 {% endfor %}
                             </ul>
                         {% else %}
-                            <p>No claimed properties yet.</p>
+                            <p>No applications yet.</p>
                         {% endif %}
                     </div>
+
+                    {% if owner_profile %}
+                    <div class="profile-properties-card">
+                        <h4>Applications On Your Properties</h4>
+                        {% if owner_applications %}
+                            <ul class="profile-properties-list">
+                                {% for item in owner_applications %}
+                                    <li>
+                                        <a href="{{ url_for('views.property_detail', property_id=item.property.property_id_pk) }}">{{ item.property.title }}</a>
+                                        {% if item.applicant %}
+                                            <span>{{ item.applicant.first_name }} {{ item.applicant.last_name }}</span>
+                                        {% else %}
+                                            <span>Applicant unavailable</span>
+                                        {% endif %}
+                                        <span>Status: {{ item.reservation.status|title }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No applications on your properties yet.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

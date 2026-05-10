@@ -96,13 +96,14 @@ CREATE TABLE PROPERTY (
 /* This table represents the reviews left by students for properties listed on Roomly */
 CREATE TABLE REVIEW_PROPERTY (
     review_property_id_pk int PRIMARY KEY,
+    property_id_fk int NOT NULL,
+    account_id_fk int NOT NULL,
     rating int NOT NULL,
     comment text,
     date_posted timestamp DEFAULT CURRENT_TIMESTAMP,
-    student_id_fk int UNIQUE NOT NULL,
-    property_id_fk int UNIQUE NOT NULL,
-    FOREIGN KEY (student_id_fk) REFERENCES STUDENT(student_id_pk), -- This is a foreign key that references the STUDENT table
-    FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk) -- This is a foreign key that references the PROPERTY table
+    FOREIGN KEY (property_id_fk) REFERENCES PROPERTY(property_id_pk), -- This is a foreign key that references the PROPERTY table
+    FOREIGN KEY (account_id_fk) REFERENCES ACCOUNT(account_id_pk), -- This is a foreign key that references the ACCOUNT table
+    UNIQUE (account_id_fk, property_id_fk)
 );
 
 /* This table represents the amenities that are associated with each property listed on Roomly with PK_FK */

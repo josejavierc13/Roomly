@@ -5,7 +5,8 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.utils import secure_filename
 
 from . import db
-from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage, Reservation
+from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage, Reservation, Student
+from .models import PropertyReview
 from .models import Account
 
 
@@ -17,9 +18,17 @@ ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 def _is_allowed_image_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
+
+def _get_owner_account(owner_profile):
+    if not owner_profile:
+        return None
+    return Account.query.filter_by(account_id_pk=owner_profile.account_id_fk).first()
+
 @views.route('/')
 def home():
-    return render_template('index.html')
+    # Get the 3 most recent available properties for featured listings
+    featured_properties = Property.query.filter_by(availability_status=True).order_by(Property.property_id_pk.desc()).limit(3).all()
+    return render_template('index.html', featured_properties=featured_properties)
 
 @views.route('/browse')
 def browse():
@@ -165,6 +174,8 @@ def list_property():
 def property_detail(property_id):
     selected_property = Property.query.get_or_404(property_id)
     owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+    owner_account = _get_owner_account(owner_profile)
+    account_id = session.get('account_id')
 
     amenity_names = []
     if selected_property.amenities:
@@ -179,18 +190,59 @@ def property_detail(property_id):
         )
         amenity_names = [row[0] for row in amenity_rows]
 
-    reservation = Reservation.query.filter_by(property_id_fk=selected_property.property_id_pk).first()
-    reserver = None
-    if reservation:
-        reserver = Account.query.filter_by(account_id_pk=reservation.account_id_fk).first()
-
-    # Check if current user already has an active reservation
-    user_has_active_reservation = False
-    account_id = session.get('account_id')
+    user_application = None
     if account_id:
-        user_has_active_reservation = Reservation.query.filter_by(account_id_fk=account_id).first() is not None
+        user_application = (
+            Reservation.query
+            .filter_by(property_id_fk=selected_property.property_id_pk, account_id_fk=account_id)
+            .order_by(Reservation.reserved_at.desc())
+            .first()
+        )
 
-    return render_template('property-detail.html', property=selected_property, owner=owner_profile, amenity_names=amenity_names, reservation=reservation, reserver=reserver, user_has_active_reservation=user_has_active_reservation)
+    property_applications = []
+    if owner_account and owner_account.account_id_pk == account_id:
+        applications = (
+            Reservation.query
+            .filter_by(property_id_fk=selected_property.property_id_pk)
+            .order_by(Reservation.reserved_at.desc())
+            .all()
+        )
+        for application in applications:
+            applicant = Account.query.filter_by(account_id_pk=application.account_id_fk).first()
+            property_applications.append({'reservation': application, 'applicant': applicant})
+
+    reviews = (
+        PropertyReview.query
+        .filter_by(property_id_fk=selected_property.property_id_pk)
+        .order_by(PropertyReview.date_posted.desc())
+        .all()
+    )
+    average_rating = None
+    if reviews:
+        average_rating = round(sum(review.rating for review in reviews) / len(reviews), 1)
+
+    user_review = None
+    if account_id:
+        user_review = PropertyReview.query.filter_by(property_id_fk=selected_property.property_id_pk, account_id_fk=account_id).first()
+
+    can_review = False
+    if account_id and not user_review:
+        approved_reservation = Reservation.query.filter_by(property_id_fk=selected_property.property_id_pk, account_id_fk=account_id, status='approved').first()
+        can_review = approved_reservation is not None
+
+    return render_template(
+        'property-detail.html',
+        property=selected_property,
+        owner=owner_profile,
+        owner_account=owner_account,
+        amenity_names=amenity_names,
+        user_application=user_application,
+        property_applications=property_applications,
+        reviews=reviews,
+        average_rating=average_rating,
+        user_review=user_review,
+        can_review=can_review,
+    )
 
 
 @views.route('/property/<int:property_id>/claim', methods=['POST'])
@@ -209,15 +261,17 @@ def claim_property(property_id):
             flash('You cannot claim your own property.', 'error')
             return redirect(url_for('views.property_detail', property_id=property_id))
 
-    existing_reservation = Reservation.query.filter_by(property_id_fk=property_id).first()
-    if existing_reservation:
-        flash('This property has already been claimed.', 'error')
-        return redirect(url_for('views.property_detail', property_id=property_id))
-
-    # Prevent user from claiming more than one property at a time
-    user_existing = Reservation.query.filter_by(account_id_fk=account_id).first()
-    if user_existing:
-        flash('You already have a reserved property. Release it before claiming another.', 'error')
+    existing_application = (
+        Reservation.query
+        .filter(
+            Reservation.property_id_fk == property_id,
+            Reservation.account_id_fk == account_id,
+            Reservation.status.in_(['pending', 'approved'])
+        )
+        .first()
+    )
+    if existing_application:
+        flash('You already have an active application for this property.', 'error')
         return redirect(url_for('views.property_detail', property_id=property_id))
 
     next_res_id = (db.session.query(db.func.max(Reservation.reservation_id_pk)).scalar() or 0) + 1
@@ -225,28 +279,157 @@ def claim_property(property_id):
         reservation_id_pk=next_res_id,
         property_id_fk=property_id,
         account_id_fk=account_id,
-        status='reserved',
+        status='pending',
     )
     db.session.add(reservation)
-
-    # mark property as not available while reserved
-    selected_property.availability_status = False
     db.session.commit()
 
-    # Fetch owner contact info if possible
     owner_contact = None
     if selected_property.owner_id_fk:
         owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
         if owner_profile:
-            owner_account = Account.query.filter_by(account_id_pk=owner_profile.account_id_fk).first()
+            owner_account = _get_owner_account(owner_profile)
             if owner_account:
-                owner_contact = owner_account.email
+                owner_contact = {
+                    'name': f'{owner_account.first_name} {owner_account.last_name}'.strip(),
+                    'email': owner_account.email,
+                    'phone_number': owner_account.phone_number,
+                }
 
-    msg = 'Property claimed and reserved for you.'
+    msg = 'Application submitted for landlord review.'
     if owner_contact:
-        msg += f' Owner contact: {owner_contact}'
+        contact_bits = [owner_contact['name']]
+        if owner_contact['email']:
+            contact_bits.append(owner_contact['email'])
+        if owner_contact['phone_number']:
+            contact_bits.append(owner_contact['phone_number'])
+        msg += f" Landlord contact: {' | '.join(contact_bits)}"
 
     flash(msg, 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))
+
+
+@views.route('/property/<int:property_id>/applications/<int:reservation_id>/approve', methods=['POST'])
+def approve_application(property_id, reservation_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to manage applications.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+    owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+    if not owner_profile or owner_profile.account_id_fk != account_id:
+        flash('You can only review applications for your own properties.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    application = Reservation.query.filter_by(reservation_id_pk=reservation_id, property_id_fk=property_id).first()
+    if not application:
+        flash('Application not found.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    application.status = 'approved'
+    selected_property.availability_status = False
+
+    other_applications = (
+        Reservation.query
+        .filter(
+            Reservation.property_id_fk == property_id,
+            Reservation.reservation_id_pk != reservation_id,
+            Reservation.status == 'pending'
+        )
+        .all()
+    )
+    for other_application in other_applications:
+        other_application.status = 'denied'
+
+    db.session.commit()
+    flash('Application approved.', 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))
+
+
+@views.route('/property/<int:property_id>/applications/<int:reservation_id>/deny', methods=['POST'])
+def deny_application(property_id, reservation_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to manage applications.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+    owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+    if not owner_profile or owner_profile.account_id_fk != account_id:
+        flash('You can only review applications for your own properties.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    application = Reservation.query.filter_by(reservation_id_pk=reservation_id, property_id_fk=property_id).first()
+    if not application:
+        flash('Application not found.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    application.status = 'denied'
+    db.session.commit()
+    flash('Application denied.', 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))
+
+
+@views.route('/property/<int:property_id>/review', methods=['POST'])
+def review_property(property_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to leave a review.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+
+    approved_reservation = Reservation.query.filter_by(
+        property_id_fk=property_id,
+        account_id_fk=account_id,
+        status='approved',
+    ).first()
+    if not approved_reservation:
+        flash('You can only review a property after your application has been approved.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    existing_review = PropertyReview.query.filter_by(property_id_fk=property_id, account_id_fk=account_id).first()
+    if existing_review:
+        flash('You have already reviewed this property.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    try:
+        rating = int(request.form.get('rating', '0'))
+    except ValueError:
+        rating = 0
+    comment = request.form.get('comment', '').strip()
+
+    if rating < 1 or rating > 5:
+        flash('Please choose a rating from 1 to 5.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    next_review_id = (db.session.query(db.func.max(PropertyReview.review_property_id_pk)).scalar() or 0) + 1
+    student_profile = Student.query.filter_by(account_id_fk=account_id).first()
+    if not student_profile:
+        next_student_id = (db.session.query(db.func.max(Student.student_id_pk)).scalar() or 0) + 1
+        # Provide minimal required fields for legacy DB schema: major and year_of_study
+        student_profile = Student(
+            student_id_pk=next_student_id,
+            major='Other',
+            year_of_study=1,
+            account_id_fk=account_id,
+        )
+        db.session.add(student_profile)
+        db.session.flush()
+
+    review = PropertyReview(
+        review_property_id_pk=next_review_id,
+        property_id_fk=property_id,
+        account_id_fk=account_id,
+        student_id_fk=student_profile.student_id_pk,
+        rating=rating,
+        comment=comment or None,
+    )
+    db.session.add(review)
+    db.session.commit()
+
+    flash('Review submitted successfully.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
 
@@ -257,17 +440,64 @@ def release_property(property_id):
         flash('Please log in to release a reservation.', 'error')
         return redirect(url_for('auth.login'))
 
-    reservation = Reservation.query.filter_by(property_id_fk=property_id, account_id_fk=account_id).first()
+    reservation = (
+        Reservation.query
+        .filter_by(property_id_fk=property_id, account_id_fk=account_id)
+        .order_by(Reservation.reserved_at.desc())
+        .first()
+    )
     if not reservation:
-        flash('No reservation found for this property under your account.', 'error')
+        flash('No application found for this property under your account.', 'error')
         return redirect(url_for('views.property_detail', property_id=property_id))
 
     selected_property = Property.query.get_or_404(property_id)
 
-    # Remove reservation and mark property available
+    if reservation.status == 'approved':
+        selected_property.availability_status = True
+
     db.session.delete(reservation)
-    selected_property.availability_status = True
     db.session.commit()
 
-    flash('Reservation released and property is now available.', 'success')
+    flash('Application removed.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
+
+
+@views.route('/property/<int:property_id>/delete', methods=['POST'])
+def delete_property(property_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to delete a property.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+
+    # Check if current user is the property owner
+    owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+    if not owner_profile or owner_profile.account_id_fk != account_id:
+        flash('You can only delete your own property listings.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    # Delete associated images from filesystem
+    for image in selected_property.images:
+        image_path = os.path.join(current_app.static_folder, image.image_url.lstrip('/static/'))
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except OSError:
+                pass  # Continue even if file deletion fails
+
+    # Delete any reservations for this property
+    Reservation.query.filter_by(property_id_fk=property_id).delete()
+
+    # Delete property amenity mappings
+    PropertyAmenity.query.filter_by(property_id_pk_fk=property_id).delete()
+
+    # Delete property images from database
+    PropertyImage.query.filter_by(property_id_fk=property_id).delete()
+
+    # Delete the property
+    db.session.delete(selected_property)
+    db.session.commit()
+
+    flash('Property listing deleted successfully.', 'success')
+    return redirect(url_for('views.browse'))

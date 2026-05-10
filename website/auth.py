@@ -58,14 +58,10 @@ def signup():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
-        account_type = request.form.get('account_type', 'STUDENT').strip().upper()
+        account_type = 'STUDENT'
 
         if not all([first_name, last_name, email, password, confirm_password]):
             flash('Please complete all sign-up fields.', 'error')
-            return render_template('sign-up.html')
-
-        if account_type not in {'OWNER', 'STUDENT'}:
-            flash('Please choose a valid account type.', 'error')
             return render_template('sign-up.html')
 
         if len(password) < 8:

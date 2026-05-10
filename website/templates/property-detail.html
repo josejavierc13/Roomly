@@ -140,6 +140,10 @@
                                         <form method="POST" action="{{ url_for('views.deny_application', property_id=property.property_id_pk, reservation_id=item.reservation.reservation_id_pk) }}" style="display:inline">
                                             <button type="submit" class="delete-btn">Deny</button>
                                         </form>
+                                    {% elif item.reservation.status == 'approved' %}
+                                        <form method="POST" action="{{ url_for('views.remove_approved_application', property_id=property.property_id_pk, reservation_id=item.reservation.reservation_id_pk) }}" style="display:inline" onsubmit="return confirm('Are you sure you want to remove this approved application and set the property as available again?');">
+                                            <button type="submit" class="delete-btn">Remove</button>
+                                        </form>
                                     {% endif %}
                                 </div>
                             {% endfor %}
@@ -203,8 +207,8 @@
                     <div class="property-owner-block">
                         <h3>Listed By</h3>
                         <p>
-                            {% if owner and owner.company_name %}
-                                {{ owner.company_name }}
+                            {% if owner or owner.company_name %}
+                                {{ owner.company_name if owner.company_name else (owner_account.first_name + ' ' + owner_account.last_name) }}
                             {% else %}
                                 Roomly Owner
                             {% endif %}

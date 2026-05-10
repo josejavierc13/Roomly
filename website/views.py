@@ -371,6 +371,36 @@ def deny_application(property_id, reservation_id):
     return redirect(url_for('views.property_detail', property_id=property_id))
 
 
+@views.route('/property/<int:property_id>/applications/<int:reservation_id>/remove', methods=['POST'])
+def remove_approved_application(property_id, reservation_id):
+    account_id = session.get('account_id')
+    if not account_id:
+        flash('Please log in to manage applications.', 'error')
+        return redirect(url_for('auth.login'))
+
+    selected_property = Property.query.get_or_404(property_id)
+    owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
+    if not owner_profile or owner_profile.account_id_fk != account_id:
+        flash('You can only manage applications for your own properties.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    application = Reservation.query.filter_by(reservation_id_pk=reservation_id, property_id_fk=property_id).first()
+    if not application:
+        flash('Application not found.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    if application.status != 'approved':
+        flash('You can only remove approved applications.', 'error')
+        return redirect(url_for('views.property_detail', property_id=property_id))
+
+    # Remove the approved application and set property back to available
+    db.session.delete(application)
+    selected_property.availability_status = True
+    db.session.commit()
+    flash('Approved application removed. Property is now available again.', 'success')
+    return redirect(url_for('views.property_detail', property_id=property_id))
+
+
 @views.route('/property/<int:property_id>/review', methods=['POST'])
 def review_property(property_id):
     account_id = session.get('account_id')

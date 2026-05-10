@@ -618,6 +618,7 @@ body.lightbox-open {
     border-radius: 8px;
     font-weight: 700;
     cursor: pointer;
+    margin-bottom: 12px;
 }
 
 .property-reservation-status {

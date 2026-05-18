@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.utils import secure_filename
 
 from . import db
-from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage, Reservation, Student
+from .models import Amenity, Owner, Property, PropertyAmenity, PropertyImage, Reservation, Student, University
 from .models import PropertyReview
 from .models import Account
 
@@ -28,13 +28,30 @@ def _get_owner_account(owner_profile):
 def home():
     # Get the 3 most recent available properties for featured listings
     featured_properties = Property.query.filter_by(availability_status=True).order_by(Property.property_id_pk.desc()).limit(3).all()
+    
+    # Get university information for each property
+    for prop in featured_properties:
+        if prop.university_id_fk:
+            prop.university = University.query.get(prop.university_id_fk)
+        else:
+            prop.university = None
+    
     return render_template('index.html', featured_properties=featured_properties)
 
 @views.route('/browse')
 def browse():
     selected_filter = request.args.get('filter', 'newest')
+    selected_university = request.args.get('university', '')
 
     query = Property.query.filter_by(availability_status=True)
+
+    # Apply university filter if selected
+    if selected_university:
+        try:
+            university_id = int(selected_university)
+            query = query.filter_by(university_id_fk=university_id)
+        except ValueError:
+            pass
 
     if selected_filter == 'price_low_high':
         query = query.order_by(Property.price_per_month.asc())
@@ -47,7 +64,18 @@ def browse():
         query = query.order_by(Property.property_id_pk.desc())
 
     properties = query.all()
-    return render_template('browse.html', properties=properties, selected_filter=selected_filter)
+    
+    # Get university information for each property
+    for prop in properties:
+        if prop.university_id_fk:
+            prop.university = University.query.get(prop.university_id_fk)
+        else:
+            prop.university = None
+    
+    # Get all universities for the dropdown
+    universities = University.query.all()
+    
+    return render_template('browse.html', properties=properties, selected_filter=selected_filter, universities=universities, selected_university=selected_university)
 
 @views.route('/list-property', methods=['GET', 'POST'])
 def list_property():
@@ -64,6 +92,9 @@ def list_property():
         owner_profile = Owner(owner_id_pk=next_owner_id, account_id_fk=account_id)
         db.session.add(owner_profile)
         db.session.commit()
+
+    # Get all universities for the dropdown
+    universities = University.query.all()
 
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -88,13 +119,25 @@ def list_property():
         formatted_amenities = [amenity.replace('-', ' ').title() for amenity in selected_amenities]
         amenities_value = ', '.join(formatted_amenities) if formatted_amenities else None
 
+        # Get the selected university
+        university_id = request.form.get('university', '').strip()
+        try:
+            university_id = int(university_id) if university_id else None
+        except ValueError:
+            flash('Please select a valid university.', 'error')
+            return render_template('list-property.html', universities=universities)
+
         if not all([title, description, address, city, state, country, postal_code]):
             flash('Please fill in all required text fields.', 'error')
-            return render_template('list-property.html')
+            return render_template('list-property.html', universities=universities)
 
         if price_per_month <= 0 or deposit_amount < 0 or number_of_bedrooms <= 0 or number_of_bathrooms <= 0 or sqr_ft <= 0:
             flash('Please enter positive values for monthly price, bedrooms, bathrooms, and square footage. Deposit cannot be negative.', 'error')
-            return render_template('list-property.html')
+            return render_template('list-property.html', universities=universities)
+        
+        if not university_id:
+            flash('Please select a closest university.', 'error')
+            return render_template('list-property.html', universities=universities)
 
         availability_status = request.form.get('availability_status', 'on') == 'on'
         image_files = request.files.getlist('images')
@@ -126,7 +169,7 @@ def list_property():
             amenities=amenities_value,
             availability_status=availability_status,
             owner_id_fk=owner_profile.owner_id_pk,
-            university_id_fk=None,
+            university_id_fk=university_id,
         )
 
         db.session.add(new_property)
@@ -167,7 +210,7 @@ def list_property():
         flash('Property listed successfully.', 'success')
         return redirect(url_for('views.browse'))
 
-    return render_template('list-property.html')
+    return render_template('list-property.html', universities=universities)
 
 
 @views.route('/property/<int:property_id>')
@@ -175,8 +218,11 @@ def property_detail(property_id):
     selected_property = Property.query.get_or_404(property_id)
     owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
     owner_account = _get_owner_account(owner_profile)
-    account_id = session.get('account_id')
-
+    account_id = session.get('account_id')    
+    # Get the university information
+    university = None
+    if selected_property.university_id_fk:
+        university = University.query.get(selected_property.university_id_fk)
     amenity_names = []
     if selected_property.amenities:
         amenity_names = [name.strip() for name in selected_property.amenities.split(',') if name.strip()]
@@ -235,6 +281,7 @@ def property_detail(property_id):
         property=selected_property,
         owner=owner_profile,
         owner_account=owner_account,
+        university=university,
         amenity_names=amenity_names,
         user_application=user_application,
         property_applications=property_applications,

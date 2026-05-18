@@ -51,6 +51,15 @@
                     <label><input type="radio" name="filter" value="newest" {% if selected_filter == 'newest' %}checked{% endif %}> Newest Listings</label>
                     <label><input type="radio" name="filter" value="oldest" {% if selected_filter == 'oldest' %}checked{% endif %}> Oldest Listings</label>
                 </div>
+                <div class="filter-university">
+                    <label for="university">Filter by University:</label>
+                    <select name="university" id="university">
+                        <option value="">All Universities</option>
+                        {% for university in universities %}
+                            <option value="{{ university.university_id_pk }}" {% if selected_university == university.university_id_pk|string %}selected{% endif %}>{{ university.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <button type="submit">Apply Filter</button>
             </form>
         </div>
@@ -62,6 +71,9 @@
                     <img src="{{ property.image_url }}" alt="{{ property.title }}">
                     <h3>{{ property.title }}</h3>
                     <p>{{ property.description }}</p>
+                    {% if property.university %}
+                        <p><strong>Closest University:</strong> {{ property.university.name }}</p>
+                    {% endif %}
                     <p>Price: ${{ property.price }}</p>
                     <a href="{{ url_for('views.property_detail', property_id=property.id) }}" class="view-details-btn">View Details</a>
                 </div>

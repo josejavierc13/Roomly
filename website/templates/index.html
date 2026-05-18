@@ -39,7 +39,7 @@
 
     <!-- Featured Listings -->
     <section class="listings">
-        <h2>Featured Rooms</h2>
+        <h2>Recent Listings in Roomly!</h2>
 
         <div class="cards">
             {% if featured_properties %}
@@ -51,6 +51,9 @@
                             <img src="{{ url_for('static', filename='logoRoomly.png') }}" alt="{{ property.title }}">
                         {% endif %}
                         <h3>{{ property.title }}</h3>
+                        {% if property.university %}
+                            <p><strong>Closest University:</strong> {{ property.university.name }}</p>
+                        {% endif %}
                         <p>${{ '%.2f'|format(property.price_per_month) }}/month</p>
                         <a href="{{ url_for('views.property_detail', property_id=property.property_id_pk) }}" class="view-details-btn">View Details</a>
                     </div>

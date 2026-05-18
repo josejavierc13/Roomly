@@ -186,6 +186,13 @@
                         <p>{{ property.address }}, {{ property.city }}, {{ property.state }} {{ property.postal_code }}, {{ property.country }}</p>
                     </div>
 
+                    {% if university %}
+                    <div class="property-university-block">
+                        <h3>Closest University</h3>
+                        <p>{{ university.name }}</p>
+                    </div>
+                    {% endif %}
+
                     <div class="property-description-block">
                         <h3>Description</h3>
                         <p>{{ property.description }}</p>

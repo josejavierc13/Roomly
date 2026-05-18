@@ -49,6 +49,14 @@
                 <input type="number" min="1" name="number_of_bedrooms" placeholder="Number of Bedrooms" required>
                 <input type="number" min="1" step="1" name="number_of_bathrooms" placeholder="Number of Bathrooms" required>
                 <input type="number" min="1" name="sqr_ft" placeholder="Square Footage" required>
+
+                <h4>Closest University:</h4>
+                <select name="university" id="university" required>
+                    <option value="" disabled selected>Select the closest university</option>
+                    {% for university in universities %}
+                        <option value="{{ university.university_id_pk }}">{{ university.name }}</option>
+                    {% endfor %}
+                </select>
      
                 <div class="list-property-container checkbox-container">
                     <h4>Choose Amenities:</h4>

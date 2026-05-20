@@ -12,17 +12,19 @@ from .models import Account
 
 views = Blueprint('views', __name__)
 
+# Allowed image extensions for property uploads
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
-
+# Helper function to check if uploaded file has an allowed image extension
 def _is_allowed_image_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
-
+# Helper function to get the account information of a property owner based on their profile
 def _get_owner_account(owner_profile):
     if not owner_profile:
         return None
     return Account.query.filter_by(account_id_pk=owner_profile.account_id_fk).first()
+
 
 @views.route('/')
 def home():
@@ -38,6 +40,7 @@ def home():
     
     return render_template('index.html', featured_properties=featured_properties)
 
+# Route for browsing available properties with filtering and sorting options
 @views.route('/browse')
 def browse():
     selected_filter = request.args.get('filter', 'newest')
@@ -64,7 +67,6 @@ def browse():
         query = query.order_by(Property.property_id_pk.desc())
 
     properties = query.all()
-    
     # Get university information for each property
     for prop in properties:
         if prop.university_id_fk:
@@ -77,6 +79,7 @@ def browse():
     
     return render_template('browse.html', properties=properties, selected_filter=selected_filter, universities=universities, selected_university=selected_university)
 
+# Route for listing a new property, accessible only to logged-in users, with form handling for property details and image uploads
 @views.route('/list-property', methods=['GET', 'POST'])
 def list_property():
     account_id = session.get('account_id')
@@ -152,6 +155,7 @@ def list_property():
 
         next_id = (db.session.query(db.func.max(Property.property_id_pk)).scalar() or 0) + 1
 
+# Create the new property record
         new_property = Property(
             property_id_pk=next_id,
             title=title,
@@ -174,6 +178,7 @@ def list_property():
 
         db.session.add(new_property)
 
+# Handle amenities: create any new amenities and link them to the property
         for amenity_name in formatted_amenities:
             amenity = Amenity.query.filter(db.func.lower(Amenity.name) == amenity_name.lower()).first()
             if not amenity:
@@ -212,7 +217,7 @@ def list_property():
 
     return render_template('list-property.html', universities=universities)
 
-
+# Route for viewing the details of a specific property, including owner information, amenities, reviews, and application status
 @views.route('/property/<int:property_id>')
 def property_detail(property_id):
     selected_property = Property.query.get_or_404(property_id)
@@ -244,7 +249,7 @@ def property_detail(property_id):
             .order_by(Reservation.reserved_at.desc())
             .first()
         )
-
+# If the current user is the owner, get all applications for this property to display in the owner dashboard
     property_applications = []
     if owner_account and owner_account.account_id_pk == account_id:
         applications = (
@@ -257,12 +262,14 @@ def property_detail(property_id):
             applicant = Account.query.filter_by(account_id_pk=application.account_id_fk).first()
             property_applications.append({'reservation': application, 'applicant': applicant})
 
+# Get all reviews for this property, calculate average rating, and check if the current user can leave a review
     reviews = (
         PropertyReview.query
         .filter_by(property_id_fk=selected_property.property_id_pk)
         .order_by(PropertyReview.date_posted.desc())
         .all()
     )
+
     average_rating = None
     if reviews:
         average_rating = round(sum(review.rating for review in reviews) / len(reviews), 1)
@@ -276,6 +283,7 @@ def property_detail(property_id):
         approved_reservation = Reservation.query.filter_by(property_id_fk=selected_property.property_id_pk, account_id_fk=account_id, status='approved').first()
         can_review = approved_reservation is not None
 
+# Render the property detail template with all the gathered information
     return render_template(
         'property-detail.html',
         property=selected_property,
@@ -290,6 +298,7 @@ def property_detail(property_id):
         user_review=user_review,
         can_review=can_review,
     )
+
 
 
 @views.route('/property/<int:property_id>/claim', methods=['POST'])
@@ -308,6 +317,7 @@ def claim_property(property_id):
             flash('You cannot claim your own property.', 'error')
             return redirect(url_for('views.property_detail', property_id=property_id))
 
+# Check if the user already has an active application for this property
     existing_application = (
         Reservation.query
         .filter(
@@ -331,6 +341,7 @@ def claim_property(property_id):
     db.session.add(reservation)
     db.session.commit()
 
+# Attempt to get owner contact information to display in the flash message, if available
     owner_contact = None
     if selected_property.owner_id_fk:
         owner_profile = Owner.query.filter_by(owner_id_pk=selected_property.owner_id_fk).first()
@@ -355,7 +366,7 @@ def claim_property(property_id):
     flash(msg, 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
-
+# Routes for property owners to approve, deny, or remove applications, with appropriate checks for ownership and application status
 @views.route('/property/<int:property_id>/applications/<int:reservation_id>/approve', methods=['POST'])
 def approve_application(property_id, reservation_id):
     account_id = session.get('account_id')
@@ -389,11 +400,12 @@ def approve_application(property_id, reservation_id):
     for other_application in other_applications:
         other_application.status = 'denied'
 
+# Commit all changes to the database at once to ensure consistency
     db.session.commit()
     flash('Application approved.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
-
+# Route for property owners to deny an application, with checks for ownership and application existence
 @views.route('/property/<int:property_id>/applications/<int:reservation_id>/deny', methods=['POST'])
 def deny_application(property_id, reservation_id):
     account_id = session.get('account_id')
@@ -418,6 +430,7 @@ def deny_application(property_id, reservation_id):
     return redirect(url_for('views.property_detail', property_id=property_id))
 
 
+#
 @views.route('/property/<int:property_id>/applications/<int:reservation_id>/remove', methods=['POST'])
 def remove_approved_application(property_id, reservation_id):
     account_id = session.get('account_id')
@@ -447,7 +460,7 @@ def remove_approved_application(property_id, reservation_id):
     flash('Approved application removed. Property is now available again.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
-
+#
 @views.route('/property/<int:property_id>/review', methods=['POST'])
 def review_property(property_id):
     account_id = session.get('account_id')
@@ -457,6 +470,7 @@ def review_property(property_id):
 
     selected_property = Property.query.get_or_404(property_id)
 
+# Ensure the user has an approved reservation for this property before allowing them to leave a review
     approved_reservation = Reservation.query.filter_by(
         property_id_fk=property_id,
         account_id_fk=account_id,
@@ -495,6 +509,7 @@ def review_property(property_id):
         db.session.add(student_profile)
         db.session.flush()
 
+# Create the review record and commit to the database
     review = PropertyReview(
         review_property_id_pk=next_review_id,
         property_id_fk=property_id,
@@ -509,7 +524,8 @@ def review_property(property_id):
     flash('Review submitted successfully.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
-
+# Route for tenants to release their reservation for a property, making it available again, 
+# with checks for user authentication and application existence
 @views.route('/property/<int:property_id>/release', methods=['POST'])
 def release_property(property_id):
     account_id = session.get('account_id')
@@ -538,7 +554,8 @@ def release_property(property_id):
     flash('Application removed.', 'success')
     return redirect(url_for('views.property_detail', property_id=property_id))
 
-
+# Route for property owners to delete their property listing, 
+# with checks for ownership and cleanup of associated images and applications
 @views.route('/property/<int:property_id>/delete', methods=['POST'])
 def delete_property(property_id):
     account_id = session.get('account_id')
@@ -572,7 +589,7 @@ def delete_property(property_id):
     # Delete property images from database
     PropertyImage.query.filter_by(property_id_fk=property_id).delete()
 
-    # Delete the property
+    # Delete the propertys
     db.session.delete(selected_property)
     db.session.commit()
 

@@ -11,12 +11,16 @@ from .models import Account, Owner, Property, Reservation
 
 auth = Blueprint('auth', __name__)
 
+# Define the allowed file extensions for profile images
 ALLOWED_PROFILE_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
-
+# Helper function to check if the uploaded profile image has an allowed file extension
 def _is_allowed_profile_image(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_PROFILE_IMAGE_EXTENSIONS
 
+# Route for handling user login, which accepts both GET and POST requests. 
+# On POST, it validates the user's credentials and logs them in by setting session variables. 
+# On GET, it renders the log-in.html template.
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -48,6 +52,10 @@ def login():
 
     return render_template('log-in.html') # Render the log-in.html template when the /login route is accessed
 
+# Route for handling user sign-up, which accepts both GET and POST requests. 
+# On POST, it validates the input data, checks for existing accounts, 
+# creates a new account (and owner profile if applicable), and commits it to the database. 
+# On GET, it
 @auth.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -60,6 +68,9 @@ def signup():
         confirm_password = request.form.get('confirm_password', '')
         account_type = 'STUDENT'
 
+# Validate that all required fields are filled out, 
+# the password meets length requirements, and the password confirmation matches. 
+# Also check if an account with the same email already exists.
         if not all([first_name, last_name, email, password, confirm_password]):
             flash('Please complete all sign-up fields.', 'error')
             return render_template('sign-up.html')
@@ -80,6 +91,7 @@ def signup():
         next_account_id = (db.session.query(db.func.max(Account.account_id_pk)).scalar() or 0) + 1
         hashed_password = generate_password_hash(password)
 
+# Create a new Account object with the provided information and add it to the database session.
         account = Account(
             account_id_pk=next_account_id,
             email=email,
@@ -95,6 +107,7 @@ def signup():
 
         db.session.add(account)
 
+# If the account type is OWNER, create a corresponding Owner profile linked to the new account and add it to the database session.
         if account_type == 'OWNER':
             next_owner_id = (db.session.query(db.func.max(Owner.owner_id_pk)).scalar() or 0) + 1
             owner = Owner(
@@ -117,13 +130,14 @@ def signup():
 
     return render_template('sign-up.html') # Render the sign-up.html template when the /signup route is accessed
 
+# Route for handling user logout. It clears the session and redirects the user to the login page with a success message.
 @auth.route('/logout')
 def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))
 
-
+# Route for displaying and updating the user's profile. 
 @auth.route('/profile', methods=['GET', 'POST'])
 def profile():
     account_id = session.get('account_id')
@@ -232,6 +246,8 @@ def profile():
         flash('Profile updated successfully.', 'success')
         return redirect(url_for('auth.profile'))
 
+# Render the profile.html template with the account information, listed properties,
+# rented properties, reserved properties, owner profile, and owner applications.
     return render_template(
         'profile.html',
         account=account,
